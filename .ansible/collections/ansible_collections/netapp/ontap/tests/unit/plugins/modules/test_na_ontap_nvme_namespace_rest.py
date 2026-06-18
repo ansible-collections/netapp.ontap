@@ -372,15 +372,10 @@ def test_create_namespace_asa_r2_system():
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
         ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/namespaces', SRR['empty_records']),
-        ('POST', 'storage/namespaces', SRR['empty_good']),
-
-        ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'cluster', SRR['is_asa_r2_system']),
-        ('GET', 'storage/namespaces', SRR['nvme_namespace_asa_r2']),
+        ('POST', 'storage/namespaces', SRR['empty_good'])
     ])
     module_args = {'provisioning_options': {'count': 2}}
     assert create_and_apply(my_module, DEFAULT_ARGS_ASA_r2, module_args)['changed']
-    assert not create_and_apply(my_module, DEFAULT_ARGS_ASA_r2, module_args)['changed']
 
 
 def test_create_namespace_error_asa_r2_system():

@@ -1,0 +1,8 @@
+---
+major_changes:
+  - na_ontap_vserver_audit - AWS Lambda support added to the module.
+  - na_ontap_cg_snapshot - AWS Lambda support added to the module.
+  - na_ontap_cli_timeout - AWS Lambda support added to the module.
+  - na_ontap_ems_config - AWS Lambda support added to the module.
+  - na_ontap_ems_destination - AWS Lambda support added to the module.
+  - na_ontap_ems_filter - AWS Lambda support added to the module.

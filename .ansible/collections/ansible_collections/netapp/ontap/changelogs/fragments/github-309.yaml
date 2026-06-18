@@ -1,0 +1,2 @@
+minor_changes:
+  - na_ontap_user - added support for `amqp` application in user management.

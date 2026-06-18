@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -75,11 +75,33 @@ options:
     choices: ['crash', 'application']
     type: str
     version_added: 23.2.0
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
 version_added: 2.7.0
 
 notes:
   - REST support requires ONTAP 9.10 or later.
   - Delete operation is supported only with REST.
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 
 '''
 
@@ -163,12 +185,17 @@ class NetAppONTAPCGSnapshot(object):
             comment=dict(required=False, type='str'),
             consistency_type=dict(required=False, type='str', choices=['crash', 'application']),
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=False,
             mutually_exclusive=[
-                ['consistency_group', 'volumes']]
+                ['consistency_group', 'volumes']
+            ],
+            required_if=[
+                ('use_lambda', True, ['lambda_config']),
+            ],
         )
 
         self.na_helper = NetAppModule()
@@ -181,6 +208,8 @@ class NetAppONTAPCGSnapshot(object):
                 self.module.fail_json(msg='REST requires ONTAP 9.10.1 or later for /application/consistency-groups APIs.')
             self.cg_uuid = None
         else:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             self.cgid = None
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())

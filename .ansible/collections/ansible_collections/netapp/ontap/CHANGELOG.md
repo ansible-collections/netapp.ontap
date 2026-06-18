@@ -9,6 +9,18 @@
   - na_ontap_publickey - AWS Lambda support added to the module.
   - na_ontap_security_key_manager - AWS Lambda support added to the module.
   - na_ontap_security_ssh - AWS Lambda support added to the module.
+  - na_ontap_vserver_audit - AWS Lambda support added to the module.
+  - na_ontap_cg_snapshot - AWS Lambda support added to the module.
+  - na_ontap_cli_timeout - AWS Lambda support added to the module.
+  - na_ontap_ems_config - AWS Lambda support added to the module.
+  - na_ontap_ems_destination - AWS Lambda support added to the module.
+  - na_ontap_ems_filter - AWS Lambda support added to the module.
+
+### Minor Changes
+- na_ontap_user - added support for `amqp` application in user management.
+
+### Bug Fixes
+  - na_ontap_nvme_namespace - Fixed issue with NVME Namespace get operation.
 
 ## 23.5.0
 

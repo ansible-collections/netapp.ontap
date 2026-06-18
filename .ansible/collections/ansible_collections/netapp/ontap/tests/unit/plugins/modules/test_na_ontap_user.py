@@ -1,4 +1,4 @@
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_user '''
@@ -471,7 +471,7 @@ def test_ensure_create_cluster_user_rest_called():
         "name": "user_name",
         "use_rest": "always",
         'role_name': 'vsadmin',
-        'applications': ['http', 'ontapi'],
+        'applications': ['amqp', 'http', 'ontapi'],
         'authentication_method': 'password',
         'set_password': 'xfjjttjwll`1',
         'lock_user': True

@@ -72,6 +72,7 @@ short_description: "NetApp ONTAP Manage NVME Namespace"
 version_added: 2.8.0
 notes:
   - Compatible with ASA r2 system when using REST for ONTAP releases 9.16.0x onwards.
+  - Module is not idempotent when C(provisioning_options) is set.
 '''
 
 EXAMPLES = """
@@ -264,34 +265,17 @@ class NetAppONTAPNVMENamespace:
         api = 'storage/namespaces'
         params = {
             'svm.name': self.parameters['vserver'],
-            'fields': 'space.size,uuid'
+            'name': self.parameters['path'],
+            'fields': 'space.size'
         }
-        response, error = rest_generic.get_0_or_more_records(self.rest_api, api, params)
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
             self.module.fail_json(msg='Error fetching namespace info for vserver: %s' % self.parameters['vserver'])
-
-        existing_namespaces = {}
-
-        if response:
-            for record in response:
-                existing_namespaces[record['name']] = {
-                    'uuid': record['uuid'],
-                    'size': record['space']['size']
-                }
-
-        requested_name = self.parameters['path']
-        if requested_name in existing_namespaces:
-            self.namespace_uuid = existing_namespaces[requested_name]['uuid']
-            return {'size' : existing_namespaces[requested_name]['size']}  # Returns exact match
-
-        base_name = requested_name.rsplit('-', 1)[0]  # extract base name if n exists
-        matching_names = {
-            name: data for name, data in existing_namespaces.items() if name.startswith(base_name + "_")
-        }
-        if matching_names:
-            first_match = next(iter(matching_names.values()))
-            return {'size': first_match['size']}
-        self.namespace_uuid = None
+        if record:
+            self.namespace_uuid = record['uuid']
+            return {
+                'size': self.na_helper.safe_get(record, ['space', 'size'])
+            }
         return None
 
     def create_namespace_rest(self):
