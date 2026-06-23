@@ -20,20 +20,20 @@ version_added: 2.9.0
 author: Milan Zink (@zeten30) <zeten30@gmail.com>/<mzink@redhat.com>
 
 description:
-  - Create, modify or delete LDAP client on NetApp ONTAP.
+  - Create, modify or delete LDAP client configuration for a data SVM on NetApp ONTAP.
 
 options:
 
   state:
     description:
-      - Whether the specified LDAP client configuration exist or not.
+      - Whether the specified LDAP client configuration exists or not.
     choices: ['present', 'absent']
     default: 'present'
     type: str
 
   vserver:
     description:
-      - vserver/svm that holds LDAP client configuration.
+      - Data SVM that holds LDAP client configuration.
     required: true
     type: str
 
@@ -46,7 +46,7 @@ options:
 
   servers:
     description:
-      - Comma separated list of LDAP servers. FQDN's or IP addreses.
+      - Comma separated list of LDAP servers. FQDN's or IP addresses.
       - servers or ad_domain is required if I(state=present).
       - Mutually exclusive with preferred_ad_servers and ad_domain.
     type: list
@@ -57,8 +57,8 @@ options:
     description:
       - LDAP schema.
       - Required if I(state=present).
-      - default schemas - 'AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307'.
-      - custom schemas are allowed as well.
+      - Default schemas - 'AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307'.
+      - Custom schemas are allowed as well.
     type: str
 
   ad_domain:

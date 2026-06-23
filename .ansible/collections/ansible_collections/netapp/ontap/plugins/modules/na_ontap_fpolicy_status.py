@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2025, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -40,8 +40,31 @@ options:
     - Policy Sequence Number.
     type: int
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
-- check_mode not supported.
+  - check_mode not supported.
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 """
 
 EXAMPLES = """
@@ -99,10 +122,13 @@ class NetAppOntapFpolicyStatus(object):
             policy_name=dict(required=True, type='str'),
             sequence_number=dict(required=False, type='int')
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            required_if=[('state', 'present', ['sequence_number'])],
+            required_if=[
+                ('state', 'present', ['sequence_number']),
+                ('use_lambda', True, ['lambda_config']),
+            ],
             supports_check_mode=True
         )
 
@@ -118,6 +144,8 @@ class NetAppOntapFpolicyStatus(object):
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
@@ -141,7 +169,7 @@ class NetAppOntapFpolicyStatus(object):
             if error:
                 self.module.fail_json(msg=error)
             records, error = rrh.check_for_0_or_more_records(api, message, error)
-            if records is not None:
+            if records and 'policies' in records[0]:
                 for policy in records[0]['policies']:
                     if policy['name'] == self.parameters['policy_name']:
                         return_value = {}

@@ -1,4 +1,4 @@
-# (c) 2021, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP fpolicy ext engine Ansible module '''
@@ -16,8 +16,8 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_fpolicy_ext_engine \
     import NetAppOntapFpolicyExtEngine as my_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 class MockONTAPConnection():
@@ -113,6 +113,7 @@ def get_fpolicy_ext_engine_mock_object(cx_type='zapi', kind=None):
     return fpolicy_ext_engine_obj
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing(patch_ansible):
     ''' required arguments are reported as errors '''
     with pytest.raises(AnsibleFailJson) as exc:
@@ -121,6 +122,7 @@ def test_module_fail_when_required_args_missing(patch_ansible):
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called(patch_ansible):
     ''' test get_fpolicy_ext_engine for non-existent engine'''
     args = dict(default_args())
@@ -133,6 +135,7 @@ def test_ensure_get_called(patch_ansible):
     assert my_obj.get_fpolicy_ext_engine is not None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_rest_missing_arguments(patch_ansible):     # pylint: disable=redefined-outer-name,unused-argument
     ''' create fpolicy ext engine '''
     args = dict(default_args())
@@ -144,6 +147,7 @@ def test_rest_missing_arguments(patch_ansible):     # pylint: disable=redefined-
     assert exc.value.args[0]['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_fpolicy_ext_engine.NetAppOntapFpolicyExtEngine.create_fpolicy_ext_engine')
 def test_successful_create(self, patch_ansible):
     ''' creating fpolicy_ext_engine and test idempotency '''
@@ -170,6 +174,7 @@ def test_successful_create(self, patch_ansible):
     assert not exc.value.args[0]['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_fpolicy_ext_engine.NetAppOntapFpolicyExtEngine.delete_fpolicy_ext_engine')
 def test_successful_delete(self, patch_ansible):
     ''' delete fpolicy_ext_engine and test idempotency '''
@@ -198,6 +203,7 @@ def test_successful_delete(self, patch_ansible):
     assert not exc.value.args[0]['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_fpolicy_ext_engine.NetAppOntapFpolicyExtEngine.modify_fpolicy_ext_engine')
 def test_successful_modify(self, patch_ansible):
     ''' modifying fpolicy_ext_engine and testing idempotency '''
@@ -225,6 +231,7 @@ def test_successful_modify(self, patch_ansible):
     assert not exc.value.args[0]['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception(patch_ansible):
     args = dict(default_args())
     args['use_rest'] = 'never'

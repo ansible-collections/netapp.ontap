@@ -225,20 +225,52 @@ class NetAppOntapEMSFilters:
                                   exception=traceback.format_exc())
 
     def modify_ems_filter(self, desired_rules):
+        """
+        Modify EMS filter rules.
+
+        Note: Unlike ONTAP CLI, the REST API requires sequential rule indexes.
+        When deleting rules, the module automatically reindexes remaining rules.
+        This is a limitation of the REST API, not the module.
+        """
         post_api = 'support/ems/filters/%s/rules' % self.parameters['name']
+        delete_api = 'support/ems/filters/%s/rules' % self.parameters['name']
         api = 'support/ems/filters'
+
+        # Delete rules that are no longer needed
+        if desired_rules.get('delete_rules'):
+            for rule_index in desired_rules['delete_rules']:
+                dummy, error = rest_generic.delete_async(self.rest_api, delete_api, rule_index)
+                if error:
+                    self.module.fail_json(msg='Error deleting rule %s from EMS filter %s: %s' % (rule_index, self.parameters['name'], to_native(error)),
+                                          exception=traceback.format_exc())
+
+        # Patch existing rules
         if desired_rules['patch_rules'] != []:
             patch_body = {'rules': desired_rules['patch_rules']}
             dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['name'], patch_body)
             if error:
                 self.module.fail_json(msg='Error modifying EMS filter %s: %s' % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
+
+        # Add new rules
         if desired_rules['post_rules'] != []:
             for rule in desired_rules['post_rules']:
                 dummy, error = rest_generic.post_async(self.rest_api, post_api, rule)
                 if error:
-                    self.module.fail_json(msg='Error modifying EMS filter %s: %s' % (self.parameters['name'], to_native(error)),
+                    self.module.fail_json(msg='Error adding rule to EMS filter %s: %s' % (self.parameters['name'], to_native(error)),
                                           exception=traceback.format_exc())
+
+    def normalize_severities(self, severities):
+        """
+        Normalize severity order for consistent comparison.
+        Convert comma-separated severity string to a sorted, lowercase string.
+        """
+        if not severities or severities == '*':
+            return '*'
+
+        # Split, strip whitespace, convert to lowercase, sort, and rejoin
+        severity_list = [s.strip().lower() for s in severities.split(',')]
+        return ','.join(sorted(severity_list))
 
     def desired_ems_rules(self, current_rules):
         # Modify current filter to remove auto added rule of type exclude, from testing it always appears to be the last element
@@ -247,74 +279,104 @@ class NetAppOntapEMSFilters:
             input_rules = self.na_helper.filter_out_none_entries(self.parameters['rules'])
             for i in range(len(input_rules)):
                 input_rules[i]['message_criteria']['severities'] = input_rules[i]['message_criteria']['severities'].lower()
-            matched_idx = []
+
+            # Declarative approach: manage rules to match exactly what's in configuration
             patch_rules = []
             post_rules = []
-            for rule_dict in current_rules['rules']:
-                for i in range(len(input_rules)):
-                    if input_rules[i]['index'] == rule_dict['index']:
-                        matched_idx.append(int(input_rules[i]['index']))
-                        patch_rules.append(input_rules[i])
+            delete_rules = []
+
+            # Get all input rule indices for quick lookup
+            input_rule_indices = {str(rule['index']) for rule in input_rules}
+
+            # Find current rules that are no longer in input - these should be deleted
+            for current_rule in current_rules['rules']:
+                if str(current_rule['index']) not in input_rule_indices:
+                    delete_rules.append(current_rule['index'])
+
+            # Process input rules to determine if they need patching or posting
+            for input_rule in input_rules:
+                rule_matched = False
+                for current_rule in current_rules['rules']:
+                    if str(input_rule['index']) == str(current_rule['index']):
+                        patch_rules.append(input_rule)
+                        rule_matched = True
                         break
-                else:
-                    rule = {'index': rule_dict['index']}
-                    rule['type'] = rule_dict.get('type')
-                    if 'message_criteria' in rule_dict:
-                        rule['message_criteria'] = {}
-                        rule['message_criteria']['severities'] = rule_dict.get('message_criteria').get('severities')
-                        rule['message_criteria']['name_pattern'] = rule_dict.get('message_criteria').get('name_pattern')
-                    if 'parameter_criteria' in rule_dict:
-                        rule['parameter_criteria'] = rule_dict.get('parameter_criteria')
-                    patch_rules.append(rule)
-            for i in range(len(input_rules)):
-                if int(input_rules[i]['index']) not in matched_idx:
-                    post_rules.append(input_rules[i])
-            desired_rules = {'patch_rules': patch_rules, 'post_rules': post_rules}
+
+                # If input rule doesn't match any existing rule, it's a new rule to post
+                if not rule_matched:
+                    post_rules.append(input_rule)
+
+            desired_rules = {'patch_rules': patch_rules, 'post_rules': post_rules, 'delete_rules': delete_rules}
             return desired_rules
         return None
 
     def find_modify(self, current, desired_rules):
+        """
+        Determine if modifications are needed based on the desired rules.
+        """
         if not current:
             return False
         # Next check if either one has no rules
         if current.get('rules') is None or desired_rules is None:
             return False
-        modify = False
-        merge_rules = desired_rules['patch_rules'] + desired_rules['post_rules']
-        # Next let check if rules is the same size if not we need to modify
-        if len(current.get('rules')) != len(merge_rules):
+
+        # If there are rules to delete, we definitely need to modify
+        if desired_rules.get('delete_rules') and len(desired_rules['delete_rules']) > 0:
             return True
-        for i in range(len(current['rules'])):
-            # compare each field to see if there is a mismatch
-            if current['rules'][i]['index'] != merge_rules[i]['index'] or current['rules'][i]['type'] != merge_rules[i]['type']:
+
+        # If there are rules to post, we definitely need to modify
+        if desired_rules.get('post_rules') and len(desired_rules['post_rules']) > 0:
+            return True
+
+        modify = False
+        merge_rules = desired_rules['patch_rules']
+
+        # Check if any rules need patching by comparing current vs desired
+        for i, patch_rule in enumerate(merge_rules):
+            # Find corresponding current rule
+            current_rule = None
+            for curr_rule in current['rules']:
+                if str(curr_rule['index']) == str(patch_rule['index']):
+                    current_rule = curr_rule
+                    break
+
+            if not current_rule:
+                return True  # Rule exists in desired but not in current
+
+            # Compare rule attributes
+            if current_rule['type'] != patch_rule['type']:
                 return True
+
+            # Adding default values for fields under message_criteria
+            if patch_rule.get('message_criteria') is None:
+                patch_rule['message_criteria'] = {'severities': '*', 'name_pattern': '*'}
+            elif patch_rule['message_criteria'].get('severities') is None:
+                patch_rule['message_criteria']['severities'] = '*'
+            elif patch_rule['message_criteria'].get('name_pattern') is None:
+                patch_rule['message_criteria']['name_pattern'] = '*'
+
+            if current_rule.get('message_criteria').get('name_pattern') != patch_rule.get('message_criteria').get('name_pattern'):
+                return True
+
+            # Compare severities using normalized order
+            current_severities = self.normalize_severities(current_rule.get('message_criteria', {}).get('severities', '*'))
+            desired_severities = self.normalize_severities(patch_rule.get('message_criteria', {}).get('severities', '*'))
+            if current_severities != desired_severities:
+                return True
+
+            # Handling parameter_criteria comparison
+            current_params = current_rule.get('parameter_criteria', [])
+            desired_params = patch_rule.get('parameter_criteria')
+
+            # Handling None/null parameter_criteria
+            if desired_params is None:
+                # If desired is None, check if current is the default wildcard pattern
+                default_param = [{'name_pattern': '*', 'value_pattern': '*'}]
+                if current_params != [] and current_params != default_param:
+                    return True
             else:
-                # adding default values for fields under message_criteria
-                if merge_rules[i].get('message_criteria') is None:
-                    merge_rules[i]['message_criteria'] = {'severities': '*', 'name_pattern': '*'}
-                elif merge_rules[i]['message_criteria'].get('severities') is None:
-                    merge_rules[i]['message_criteria']['severities'] = '*'
-                elif merge_rules[i]['message_criteria'].get('name_pattern') is None:
-                    merge_rules[i]['message_criteria']['name_pattern'] = '*'
-
-                if current['rules'][i].get('message_criteria').get('name_pattern') != merge_rules[i].get('message_criteria').get('name_pattern'):
+                if current_params != desired_params:
                     return True
-                if current['rules'][i].get('message_criteria').get('severities') != merge_rules[i].get('message_criteria').get('severities'):
-                    return True
-
-                # Handling parameter_criteria comparison
-                current_params = current['rules'][i].get('parameter_criteria', [])
-                desired_params = merge_rules[i].get('parameter_criteria')
-
-                # Handling None/null parameter_criteria
-                if desired_params is None:
-                    # If desired is None, check if current is the default wildcard pattern
-                    default_param = [{'name_pattern': '*', 'value_pattern': '*'}]
-                    if current_params != [] and current_params != default_param:
-                        return True
-                else:
-                    if current_params != desired_params:
-                        return True
         return modify
 
     def apply(self):
@@ -326,6 +388,7 @@ class NetAppOntapEMSFilters:
             modify = self.find_modify(current, desired_rules)
             if modify:
                 self.na_helper.changed = True
+
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_ems_filter()

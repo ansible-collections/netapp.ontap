@@ -1,0 +1,6 @@
+major_changes:
+  - na_ontap_fpolicy_event - AWS Lambda support added to the module.
+  - na_ontap_fpolicy_ext_engine - AWS Lambda support added to the module.
+  - na_ontap_fpolicy_policy - AWS Lambda support added to the module.
+  - na_ontap_fpolicy_scope - AWS Lambda support added to the module.
+  - na_ontap_fpolicy_status - AWS Lambda support added to the module.

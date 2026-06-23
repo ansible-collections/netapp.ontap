@@ -1,3 +1,6 @@
+# (c) 2021-2026, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 ''' unit tests ONTAP Ansible module: na_ontap_fpolicy_event '''
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
@@ -15,8 +18,8 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_fpolicy_event \
     import NetAppOntapFpolicyEvent as fpolicy_event_module  # module under test
 
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = {
@@ -127,6 +130,7 @@ class TestMyModule(unittest.TestCase):
                 fpolicy_event_obj.server = MockONTAPConnection(kind=kind)
         return fpolicy_event_obj
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_module_fail_when_required_args_missing(self):
         ''' required arguments are reported as errors '''
         with pytest.raises(AnsibleFailJson) as exc:
@@ -134,6 +138,7 @@ class TestMyModule(unittest.TestCase):
             fpolicy_event_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_ensure_get_called(self):
         ''' test get_fpolicy_event for non-existent config'''
         set_module_args(self.set_default_args(use_rest='Never'))
@@ -143,6 +148,7 @@ class TestMyModule(unittest.TestCase):
         my_obj.server = self.server
         assert my_obj.get_fpolicy_event is not None
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_ensure_get_called_existing(self):
         ''' test get_fpolicy_event_config for existing config'''
         set_module_args(self.set_default_args(use_rest='Never'))
@@ -150,6 +156,7 @@ class TestMyModule(unittest.TestCase):
         my_obj.server = MockONTAPConnection(kind='fpolicy_event')
         assert my_obj.get_fpolicy_event()
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_fpolicy_event.NetAppOntapFpolicyEvent.create_fpolicy_event')
     def test_successful_create(self, create_fpolicy_event):
         ''' creating fpolicy_event and test idempotency '''
@@ -170,6 +177,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_fpolicy_event.NetAppOntapFpolicyEvent.delete_fpolicy_event')
     def test_successful_delete(self, delete_fpolicy_event):
         ''' delete fpolicy_event and test idempotency '''
@@ -190,6 +198,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_fpolicy_event.NetAppOntapFpolicyEvent.modify_fpolicy_event')
     def test_successful_modify(self, modify_fpolicy_event):
         ''' modifying fpolicy_event config and testing idempotency '''
@@ -212,6 +221,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_if_all_methods_catch_exception(self):
         data = self.set_default_args(use_rest='Never')
         set_module_args(data)

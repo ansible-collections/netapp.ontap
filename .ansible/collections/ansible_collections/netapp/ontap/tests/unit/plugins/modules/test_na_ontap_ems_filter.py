@@ -408,7 +408,6 @@ def test_modify_ems_filter_change_type():
         ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'support/ems/filters', SRR['ems_filter']),
         ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
         ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_2_RULES}
@@ -419,9 +418,7 @@ def test_modify_ems_filter_change_severities():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'support/ems/filters', SRR['ems_filter_2_rules']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_MODIFY_SEVERITIES_2_RULES}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -431,9 +428,7 @@ def test_modify_ems_filter_change_name_pattern():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'support/ems/filters', SRR['ems_filter_2_rules']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_MODIFY_NAME_PATTERN_2_RULES}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -444,8 +439,6 @@ def test_modify_ems_filter_add_rule_and_change_severities():
         ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'support/ems/filters', SRR['ems_filter_2_rules']),
         ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
         ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_MODIFY_SEVERITIES_3_RULES}
@@ -478,8 +471,7 @@ def test_modify_star_test():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'support/ems/filters', SRR['ems_filter']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_STARS}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -489,9 +481,7 @@ def test_modify_ems_filter_parameter_criteria():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'support/ems/filters', SRR['ems_filter_2_rules']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
-        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_MODIFY_PARAMETER_CRITERIA_2_RULES}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
