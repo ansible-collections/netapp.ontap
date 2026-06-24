@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -18,8 +18,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user \
     import NetAppOntapUnixUser as user_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -100,6 +100,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_user():
     ''' Test if get_unix_user returns None for non-existent user '''
     register_responses([
@@ -110,6 +111,7 @@ def test_get_nonexistent_user():
     assert result is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existent_user():
     ''' Test if get_unix_user returns existent user '''
     register_responses([
@@ -120,6 +122,7 @@ def test_get_existent_user():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_error_existent_user():
     ''' Test if get_unix_user returns existent user '''
     register_responses([
@@ -130,6 +133,7 @@ def test_get_error_existent_user():
     assert msg in expect_and_capture_ansible_exception(user_module_object.get_unix_user, 'fail')['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_unix_user_zapi():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['empty']),
@@ -144,6 +148,7 @@ def test_create_unix_user_zapi():
     assert create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_create_unix_user_zapi():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['empty']),
@@ -160,6 +165,7 @@ def test_error_create_unix_user_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_unix_user_zapi():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
@@ -175,6 +181,7 @@ def test_delete_unix_user_zapi():
     assert create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_remove_unix_user_zapi():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
@@ -192,6 +199,7 @@ def test_error_remove_unix_user_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_unix_user_id_zapi():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
@@ -204,6 +212,7 @@ def test_modify_unix_user_id_zapi():
     assert create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_unix_user_full_name_zapi():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
@@ -215,6 +224,7 @@ def test_modify_unix_user_full_name_zapi():
     assert create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_modify_unix_user_full_name_zapi():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
@@ -228,6 +238,7 @@ def test_error_modify_unix_user_full_name_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotent():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info'])
@@ -242,6 +253,7 @@ def test_create_idempotent():
     assert not create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotent():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['empty'])
@@ -252,6 +264,7 @@ def test_delete_idempotent():
     assert not create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('name-mapping-unix-user-get-iter', ZRR['error']),

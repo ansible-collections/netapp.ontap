@@ -1,0 +1,7 @@
+---
+major_changes:
+  - na_ontap_login_messages - AWS Lambda support added to the module.
+  - na_ontap_snaplock_clock - AWS Lambda support added to the module.
+  - na_ontap_unix_group - AWS Lambda support added to the module.
+  - na_ontap_unix_user - AWS Lambda support added to the module.
+  - na_ontap_nvme_namespace - AWS Lambda support added to the module.

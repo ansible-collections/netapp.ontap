@@ -20,15 +20,18 @@
   - na_ontap_fpolicy_policy - AWS Lambda support added to the module.
   - na_ontap_fpolicy_scope - AWS Lambda support added to the module.
   - na_ontap_fpolicy_status - AWS Lambda support added to the module.
+  - na_ontap_login_messages - AWS Lambda support added to the module.
+  - na_ontap_snaplock_clock - AWS Lambda support added to the module.
+  - na_ontap_unix_group - AWS Lambda support added to the module.
+  - na_ontap_unix_user - AWS Lambda support added to the module.
+  - na_ontap_nvme_namespace - AWS Lambda support added to the module.
 
 ### Minor Changes
-- na_ontap_user - added support for `amqp` application in user management.
+  - na_ontap_user - added support for `amqp` application in user management.
+  - na_ontap_ems_filter - Added support for rule deletion in REST.
 
 ### Bug Fixes
   - na_ontap_nvme_namespace - Fixed issue with NVME Namespace get operation.
-
-### Minor Changes
-  - na_ontap_ems_filter - Added support for rule deletion in REST.
 
 ## 23.5.0
 

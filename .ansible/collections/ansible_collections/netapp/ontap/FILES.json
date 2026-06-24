@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "2d27be0ede234e10311e9e659f6693e1e3b5dbb2251aa5fd2763c2e17b1aa88b",
+   "chksum_sha256": "eb960b3e63704e8b4a6ee9dfcded1d86df36a328a3d4826e0837b7b20d566810",
    "format": 1
   },
   {
@@ -4796,6 +4796,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8454.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "bf7ac17782128a747ee9a5c9d0891ef4432d6d84aed3b12b9bd97c64d8a6a3e1",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-8464.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5744,7 +5751,7 @@
    "name": "plugins/modules/na_ontap_login_messages.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "26cd71ff70841d65f59e0c68e101a28ae5c7fcae3350c516d70e1f24797ffef7",
+   "chksum_sha256": "cb595ee195cc305f9ac1e09f0d2507a4a5290cf369535e395b7c728a60c25ad1",
    "format": 1
   },
   {
@@ -5933,7 +5940,7 @@
    "name": "plugins/modules/na_ontap_nvme_namespace.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "d04be1912e668f85e8c0f941e88527404584d5200eeedfe6f71c95bb74254de2",
+   "chksum_sha256": "ec6264e959d7d709e1bcacf2262f5636a15bda8bd40437950ebd1da9d2fbf8b1",
    "format": 1
   },
   {
@@ -6136,7 +6143,7 @@
    "name": "plugins/modules/na_ontap_snaplock_clock.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "926694e65178cafa5321ae96fec208b1038dee646bc879c1166bb5888518912d",
+   "chksum_sha256": "d2eb405d7bb8d172d45fa11b5aeed9da7e910fc7e411630327870b3cd6ce795d",
    "format": 1
   },
   {
@@ -6262,14 +6269,14 @@
    "name": "plugins/modules/na_ontap_unix_group.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "89777765b1e01b2841a530d4d0e9a49cab7f2682976e541b31d799d701a7affe",
+   "chksum_sha256": "0d0269cafa10102d31b90669f13acf5cee35f979af5a9f6742c5ad76a084d57e",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_unix_user.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "be58cb3b18410f4bedcc95a759a333a597bc463738e2d8786b6884b4f5b16e7a",
+   "chksum_sha256": "36f2c76a998691a555b9addcacafaa12fe4254a0721524eb0bbe302bbc61c79f",
    "format": 1
   },
   {
@@ -8432,7 +8439,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_snaplock_clock.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "d1d6419b74b25fe6201e0df177377da5be20e8a2d748d26ff5970a03dcf6a307",
+   "chksum_sha256": "a230303148d93a2fc7c0d1c9e0ee6897f614de7b69b8eb6798237d74e5b75b1a",
    "format": 1
   },
   {
@@ -8558,14 +8565,14 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_unix_group.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "7c61a7cd4b377186d92f4028b345958020e0ee22e25f899877c9df73b30b2c2d",
+   "chksum_sha256": "c64ba51efa63423dd30d9dafb316db4c854975fefa8fcfd528dd605c0feb313e",
    "format": 1
   },
   {
    "name": "tests/unit/plugins/modules/test_na_ontap_unix_user.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "5cdf268c1cde139a14bdbb191ad5a54adc0f957d772fe9cd3db63d4d78f18d54",
+   "chksum_sha256": "b53a6109aac91282f4fd221f67871a7523fe88772aebc97f4a9191b09ffaff79",
    "format": 1
   },
   {

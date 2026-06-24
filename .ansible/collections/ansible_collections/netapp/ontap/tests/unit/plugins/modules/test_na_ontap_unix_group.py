@@ -1,4 +1,4 @@
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -18,8 +18,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_group \
     import NetAppOntapUnixGroup as group_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -85,6 +85,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_user_group():
     ''' Test if get_unix_group returns None for non-existent group '''
     register_responses([
@@ -95,6 +96,7 @@ def test_get_nonexistent_user_group():
     assert result is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_user_group():
     ''' Test if get_unix_group returns unix group '''
     register_responses([
@@ -105,6 +107,7 @@ def test_get_user_group():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_error_existent_user_group():
     ''' Test if get_unix_user returns existent user group '''
     register_responses([
@@ -115,6 +118,7 @@ def test_get_error_existent_user_group():
     assert msg in expect_and_capture_ansible_exception(group_module_object.get_unix_group, 'fail')['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_unix_group_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['empty']),
@@ -127,6 +131,7 @@ def test_create_unix_group_zapi():
     assert create_and_apply(group_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_unix_group_with_user_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['empty']),
@@ -142,6 +147,7 @@ def test_create_unix_group_with_user_zapi():
     assert create_and_apply(group_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_create_unix_user_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['empty']),
@@ -157,6 +163,7 @@ def test_error_create_unix_user_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_unix_group_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -169,6 +176,7 @@ def test_delete_unix_group_zapi():
     assert create_and_apply(group_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_remove_unix_group_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -183,6 +191,7 @@ def test_error_remove_unix_group_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotent():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info'])
@@ -195,6 +204,7 @@ def test_create_idempotent():
     assert not create_and_apply(group_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotent():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['empty'])
@@ -206,6 +216,7 @@ def test_delete_idempotent():
     assert not create_and_apply(group_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_unix_group_id_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -218,6 +229,7 @@ def test_modify_unix_group_id_zapi():
     assert create_and_apply(group_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_modify_unix_group_id_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -232,6 +244,7 @@ def test_error_modify_unix_group_id_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_add_unix_group_user_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -245,6 +258,7 @@ def test_add_unix_group_user_zapi():
     assert create_and_apply(group_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_add_unix_group_user_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -260,6 +274,7 @@ def test_error_add_unix_group_user_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_unix_group_user_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -273,6 +288,7 @@ def test_delete_unix_group_user_zapi():
     assert create_and_apply(group_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_delete_unix_group_user_zapi():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -288,6 +304,7 @@ def test_error_delete_unix_group_user_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('name-mapping-unix-group-get-iter', ZRR['error']),

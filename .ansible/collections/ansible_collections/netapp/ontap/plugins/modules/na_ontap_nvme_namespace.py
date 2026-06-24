@@ -68,10 +68,33 @@ options:
           - When provided, the name is considered a prefix, and a suffix of the form _<N> is generated
             where N is the next available numeric index, starting with 1.
         type: int
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
 short_description: "NetApp ONTAP Manage NVME Namespace"
 version_added: 2.8.0
+
 notes:
   - Compatible with ASA r2 system when using REST for ONTAP releases 9.16.0x onwards.
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
   - Module is not idempotent when C(provisioning_options) is set.
 '''
 
@@ -160,10 +183,13 @@ class NetAppONTAPNVMENamespace:
                 count=dict(type='int'),
             ))
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            required_if=[('state', 'present', ['ostype', 'size'])],
+            required_if=[
+                ('state', 'present', ['ostype', 'size']),
+                ('use_lambda', True, ['lambda_config'])
+            ],
             supports_check_mode=True
         )
 
@@ -194,6 +220,8 @@ class NetAppONTAPNVMENamespace:
                 self.default_block_size = 512
             self.parameters['size'] = ((self.parameters['size'] + self.default_block_size - 1) // self.default_block_size) * self.default_block_size
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
