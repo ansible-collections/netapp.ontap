@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2025, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -73,8 +73,32 @@ options:
        index number. If you do not specify this optional parameter, new tasks are applied to the end of the index list.
     type: int
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
-- check_mode is supported for this module.
+  - Supports C(check_mode).
+  - Only supported with REST. Requires ONTAP 9.6 or later.
+  - Supports AWS Lambda proxy functionality. See README for example usage.
 """
 
 EXAMPLES = """
@@ -148,9 +172,13 @@ class NetAppOntapFDSPT():
             security_type=dict(required=False, choices=['ntfs', 'nfsv4'], type='str'),
             index_num=dict(required=False, type='int')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ('use_lambda', True, ['lambda_config']),
+            ],
             supports_check_mode=True
         )
 

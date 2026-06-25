@@ -1,0 +1,8 @@
+---
+major_changes:
+  - na_ontap_fdsd - AWS Lambda support added to the module.
+  - na_ontap_fdsp - AWS Lambda support added to the module.
+  - na_ontap_fdspt - AWS Lambda support added to the module.
+  - na_ontap_fdss - AWS Lambda support added to the module.
+  - na_ontap_file_security_permissions_acl - AWS Lambda support added to the module.
+  - na_ontap_rest_cli - AWS Lambda support added to the module.

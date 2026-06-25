@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "eb960b3e63704e8b4a6ee9dfcded1d86df36a328a3d4826e0837b7b20d566810",
+   "chksum_sha256": "a88ff184d05cfc2edcaa97bca8ba6df54057d57a99c50504a2a24b59945022c6",
    "format": 1
   },
   {
@@ -4817,6 +4817,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8473.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d522467fb7fa6a7d4a20a058df371e935d874858d8c6e08e517a570e54fc1bb0",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5541,28 +5548,28 @@
    "name": "plugins/modules/na_ontap_fdsd.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "6488dd86364a3e305a87c39be84cbcbeaa6d85ceca9557ff8d3b43ed77a1e012",
+   "chksum_sha256": "3ea17d9932500e1f0a95e28bd98c151e6f6c3fa3dbb7fcc2fd1fbdaa2ec6e427",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_fdsp.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "34a5e418f27899d536067e3e5dcf416e0df1568abc3a89568146048d8c920708",
+   "chksum_sha256": "8eb86b21be923654cb420278ab7c074a1af6f95e1b953e28206c91a886f91a4d",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_fdspt.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "3db8a1b9dba0ab07d23e880ff2e2ba85159dfdc4ed3b4cacecc286be6da8d17b",
+   "chksum_sha256": "031125e91da8447255d4aa1c262f2227519b0d4202b8cd286fd09fc6a17a4c39",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_fdss.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "58871398417094e43d6438c784430659d3e17e82c2fc7fda5c0adb152d620280",
+   "chksum_sha256": "b912a7efdbc1314ecc70a309d683ba8e6dc9e72405a30aa95b6bf2c6bb3adbcd",
    "format": 1
   },
   {
@@ -5583,7 +5590,7 @@
    "name": "plugins/modules/na_ontap_file_security_permissions_acl.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "fc102b98021977c683c9c795b3b792d9f070df07e3be1c9d06a2ec6144ba16a1",
+   "chksum_sha256": "b92d4e60d44e988c0cabf2787dea2db09b9a28591c3697b1b1f0f7849ef9e9e8",
    "format": 1
   },
   {
@@ -6024,7 +6031,7 @@
    "name": "plugins/modules/na_ontap_rest_cli.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "5a82ec612f53822feb347dcb4be9e52bbb2a6cc83bea05f2a0fcecc1e45698ac",
+   "chksum_sha256": "5d732900596f80146186a87d9990bc0cd897fb893f86de63de1312987dcf74d5",
    "format": 1
   },
   {

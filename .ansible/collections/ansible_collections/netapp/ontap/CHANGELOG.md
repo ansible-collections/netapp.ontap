@@ -25,6 +25,12 @@
   - na_ontap_unix_group - AWS Lambda support added to the module.
   - na_ontap_unix_user - AWS Lambda support added to the module.
   - na_ontap_nvme_namespace - AWS Lambda support added to the module.
+  - na_ontap_fdsd - AWS Lambda support added to the module.
+  - na_ontap_fdsp - AWS Lambda support added to the module.
+  - na_ontap_fdspt - AWS Lambda support added to the module.
+  - na_ontap_fdss - AWS Lambda support added to the module.
+  - na_ontap_file_security_permissions_acl - AWS Lambda support added to the module.
+  - na_ontap_rest_cli - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_user - added support for `amqp` application in user management.
