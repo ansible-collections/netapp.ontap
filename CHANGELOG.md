@@ -35,6 +35,7 @@
 ### Minor Changes
   - na_ontap_user - added support for `amqp` application in user management.
   - na_ontap_ems_filter - Added support for rule deletion in REST.
+  - na_ontap_volume - new REST only options added under `event_log` and `attack_detection_parameters`.
 
 ### Bug Fixes
   - na_ontap_nvme_namespace - Fixed issue with NVME Namespace get operation.

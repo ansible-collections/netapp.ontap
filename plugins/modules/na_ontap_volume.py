@@ -787,6 +787,89 @@ options:
           - C(paused) is valid only for modify operation.
         type: str
         choices: ['enabled', 'disabled', 'dry_run', 'paused']
+        version_added: 23.5.0
+
+      event_log:
+        description:
+            - Determines whether to log anti-ransomware events for an anti-ransomware enabled volume.
+            - Requires ONTAP 9.14.1 or later.
+        type: dict
+        version_added: 23.6.0
+        suboptions:
+          is_enabled_on_new_file_extension_seen:
+            description:
+              - Specifies whether to send an EMS when a new file extension is discovered.
+            type: bool
+          is_enabled_on_snapshot_copy_creation:
+            description:
+              - Specifies whether to send an EMS when a snapshot is created.
+            type: bool
+
+      attack_detection_parameters:
+        description:
+          - Describes the attack detection parameters of an anti-ransomware enabled volume.
+          - Requires ONTAP 9.11.1 or later.
+        type: dict
+        version_added: 23.6.0
+        suboptions:
+          never_seen_before_file_extension_duration_in_hours:
+            description:
+              - Specifies the duration within which the specified number of files found with never seen before file extensions is considered normal behavior.
+            type: int
+          never_seen_before_file_extension_count_notify_threshold:
+            description:
+              - Specifies the number of files found with a never seen before file extension up to which it is considered normal behavior.
+            type: int
+          relaxing_popular_file_extensions:
+            description:
+              - Specifies whether popular file extensions should be relaxed from being treated as a suspect for the attack.
+                Some popular file extensions are .txt, .pdf, and so on.
+            type: bool
+          file_rename_op_rate_surge_notify_percent:
+            description:
+              - Specifies the percent of surge in the file rename rate up to which it is considered normal behavior.
+            type: int
+          based_on_high_entropy_data_rate:
+            description:
+              - Specifies whether a high entropy data rate should be considered for attack detection.
+            type: bool
+          high_entropy_data_surge_notify_percent:
+            description:
+              - Specifies the percentage of surge in high entropy data up to which it is considered as normal behavior.
+              - For example, if the usual high entropy data rate in the volume is 5%, and if this parameter is set to 100%,
+                it will be considered as an unusual surge if the high entropy data rate of the volume exceeds 10%, at any time.
+              - Similarly, if this parameter is set to 400%, it will be considered as an unusual surge
+                if the high entropy data rate of the volume exceeds 25%, and so on.
+            type: int
+          based_on_file_rename_op_rate:
+            description:
+              - Specifies whether attack detection is based on the file rename operations rate. This parameter is valid only for NAS volumes.
+            type: bool
+          based_on_file_create_op_rate:
+            description:
+              - Specifies whether attack detection is based on the file create operations rate. This parameter is valid only for NAS volumes.
+            type: bool
+          file_create_op_rate_surge_notify_percent:
+            description:
+              - Specifies the percentage of surge in the file create rate up to which it is considered normal behavior.
+            type: int
+          file_delete_op_rate_surge_notify_percent:
+            description:
+              - Specifies the percentage of surge in the file delete rate up to which it is considered normal behavior.
+            type: int
+          based_on_never_seen_before_file_extension:
+            description:
+              - Specifies whether file extensions never seen before should be considered for attack detection.
+            type: bool
+          block_device_auto_learned_encryption_threshold:
+            description:
+              - Specifies the block device auto learned encryption threshold.
+              - Requires ONTAP 9.17.1 or later.
+            type: int
+          based_on_file_delete_op_rate:
+            description:
+              - Specifies whether attack detection is based on the file delete operations rate. This parameter is valid only for NAS volumes.
+            type: bool
 
   lambda_config:
     description:
@@ -1209,6 +1292,25 @@ class NetAppOntapVolume:
             granular_data=dict(required=False, type='bool'),
             anti_ransomware=dict(type='dict', options=dict(
                 state=dict(required=False, type='str', choices=['enabled', 'disabled', 'dry_run', 'paused']),
+                event_log=dict(type='dict', options=dict(
+                    is_enabled_on_new_file_extension_seen=dict(required=False, type='bool'),
+                    is_enabled_on_snapshot_copy_creation=dict(required=False, type='bool')
+                )),
+                attack_detection_parameters=dict(type='dict', options=dict(
+                    never_seen_before_file_extension_duration_in_hours=dict(required=False, type='int'),
+                    never_seen_before_file_extension_count_notify_threshold=dict(required=False, type='int'),
+                    relaxing_popular_file_extensions=dict(required=False, type='bool'),
+                    file_rename_op_rate_surge_notify_percent=dict(required=False, type='int'),
+                    based_on_high_entropy_data_rate=dict(required=False, type='bool'),
+                    high_entropy_data_surge_notify_percent=dict(required=False, type='int'),
+                    based_on_file_rename_op_rate=dict(required=False, type='bool'),
+                    based_on_file_create_op_rate=dict(required=False, type='bool'),
+                    file_create_op_rate_surge_notify_percent=dict(required=False, type='int'),
+                    file_delete_op_rate_surge_notify_percent=dict(required=False, type='int'),
+                    based_on_never_seen_before_file_extension=dict(required=False, type='bool'),
+                    block_device_auto_learned_encryption_threshold=dict(required=False, type='int'),
+                    based_on_file_delete_op_rate=dict(required=False, type='bool')
+                )),
             )),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
@@ -3055,6 +3157,19 @@ class NetAppOntapVolume:
            self.na_helper.safe_get(self.parameters, ['nas_application_template', 'snapshot_locking_enabled']) is not None:
             self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version('nas_application_template: \
                                                                                                  snapshot_locking_enabled', version='9.13.1'))
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 14, 1) and\
+           self.na_helper.safe_get(self.parameters, ['anti_ransomware', 'event_log']) is not None:
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version('anti_ransomware: event_log', version='9.14.1'))
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1) and\
+           self.na_helper.safe_get(self.parameters, ['anti_ransomware',
+                                                     'attack_detection_parameters']) is not None:
+            msg = 'anti_ransomware: attack_detection_parameters'
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(msg, version='9.11.1'))
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 17, 1) and\
+           self.na_helper.safe_get(self.parameters, ['anti_ransomware', 'attack_detection_parameters',
+                                                     'block_device_auto_learned_encryption_threshold']) is not None:
+            msg = 'anti_ransomware: attack_detection_parameters: block_device_auto_learned_encryption_threshold'
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(msg, version='9.17.1'))
 
         if self.na_helper.safe_get(self.parameters, ['nas_application_template', 'cifs_share_name']) is not None and\
            self.na_helper.safe_get(self.parameters, ['nas_application_template', 'cifs_access']) is None:
@@ -3164,6 +3279,10 @@ class NetAppOntapVolume:
         if current:
             if 'tiering_object_tags' in current and current['tiering_object_tags'] is None:
                 current['tiering_object_tags'] = []
+            if self.na_helper.safe_get(self.parameters, ['anti_ransomware', 'event_log']) is not None or \
+               self.na_helper.safe_get(self.parameters, ['anti_ransomware', 'attack_detection_parameters']) is not None:
+                if self.na_helper.safe_get(current, ['anti_ransomware', 'state']) == 'disabled':
+                    self.module.warn('Cannot modify anti-ransomware settings for an anti-ransomware disabled volume.')
         self.volume_style = self.get_volume_style(current)
         if self.volume_style == 'flexgroup' and self.parameters.get('aggregate_name') is not None:
             self.module.fail_json(msg='Error: aggregate_name option cannot be used with FlexGroups.')

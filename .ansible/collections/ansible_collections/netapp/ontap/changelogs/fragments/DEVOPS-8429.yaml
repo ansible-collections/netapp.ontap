@@ -1,0 +1,3 @@
+---
+minor_changes:
+  - na_ontap_volume - new REST only options added under `event_log` and `attack_detection_parameters`.

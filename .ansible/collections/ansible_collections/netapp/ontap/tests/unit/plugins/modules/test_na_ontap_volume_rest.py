@@ -132,7 +132,17 @@ volume_info_ar_disabled['anti_ransomware'] = {'state': 'disabled'}
 volume_info_ar_disable_in_progress = copy.deepcopy(volume_info)
 volume_info_ar_disable_in_progress['anti_ransomware'] = {'state': 'disable_in_progress'}
 volume_info_ar_enabled = copy.deepcopy(volume_info)
-volume_info_ar_enabled['anti_ransomware'] = {'state': 'enabled'}
+volume_info_ar_enabled['anti_ransomware'] = {
+    'state': 'enabled',
+    'event_log': {
+        'is_enabled_on_new_file_extension_seen': False,
+        'is_enabled_on_snapshot_copy_creation': False
+    },
+    'attack_detection_parameters': {
+        'never_seen_before_file_extension_count_notify_threshold': 5,
+        'never_seen_before_file_extension_duration_in_hours': 48
+    }
+}
 volume_info_ar_paused = copy.deepcopy(volume_info)
 volume_info_ar_paused['anti_ransomware'] = {'state': 'enable_paused'}
 
@@ -680,6 +690,29 @@ def test_rest_successfully_modify_large_size_enabled():
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
 
+def test_rest_modify_anti_ransomware_settings_warning():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_disabled']),
+    ])
+    module_args = {
+        'anti_ransomware': {
+            'event_log': {
+                'is_enabled_on_new_file_extension_seen': True,
+                'is_enabled_on_snapshot_copy_creation': True
+            },
+            'attack_detection_parameters': {
+                'never_seen_before_file_extension_count_notify_threshold': 10,
+                'never_seen_before_file_extension_duration_in_hours': 24
+            }
+        },
+    }
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    print_warnings()
+    warning = "Cannot modify anti-ransomware settings for an anti-ransomware disabled volume."
+    assert_warning_was_raised(warning)
+
+
 def test_rest_modify_anti_ransomware_state_enabled():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
@@ -694,6 +727,27 @@ def test_rest_modify_anti_ransomware_state_enabled():
     }
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
     assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+def test_rest_modify_anti_ransomware_settings():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_enabled']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),
+    ])
+    module_args = {
+        'anti_ransomware': {
+            'event_log': {
+                'is_enabled_on_new_file_extension_seen': True,
+                'is_enabled_on_snapshot_copy_creation': True
+            },
+            'attack_detection_parameters': {
+                'never_seen_before_file_extension_count_notify_threshold': 10,
+                'never_seen_before_file_extension_duration_in_hours': 24
+            }
+        },
+    }
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
 
 def test_rest_modify_anti_ransomware_state_paused():
