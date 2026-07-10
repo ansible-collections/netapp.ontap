@@ -36,9 +36,13 @@
   - na_ontap_user - added support for `amqp` application in user management.
   - na_ontap_ems_filter - Added support for rule deletion in REST.
   - na_ontap_volume - new REST only options added under `event_log` and `attack_detection_parameters`.
+  - na_ontap_volume - updated docs for volume `type`.
 
 ### Bug Fixes
   - na_ontap_nvme_namespace - Fixed issue with NVME Namespace get operation.
+
+### Bug Fixes
+  - na_ontap_volume - Updated code to check for `aggr_list` and return an error if `aggr_list_multiplier` is used without `aggr_list` in ONTAP REST 9.17 or later.
 
 ## 23.5.0
 

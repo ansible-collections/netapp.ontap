@@ -990,6 +990,37 @@ def test_rest_successfully_create_volume_with_qos_adaptive_policy_error():
     assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
+def test_rest_create_volume_aggr_list_multiplier_without_aggr_list_allowed_pre_9_17():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['no_record']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
+        ('POST', 'storage/volumes', SRR['no_record']),
+        ('GET', 'storage/volumes', SRR['get_volume']),
+    ])
+    args = copy.deepcopy(DEFAULT_VOLUME_ARGS)
+    del args['aggregate_name']
+    module_args = {
+        'aggr_list_multiplier': 2
+    }
+    assert create_and_apply(volume_module, args, module_args)['changed']
+
+
+def test_rest_create_volume_aggr_list_multiplier_requires_aggr_list_on_9_17_and_later():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
+    ])
+    args = copy.deepcopy(DEFAULT_VOLUME_ARGS)
+    del args['aggregate_name']
+    module_args = {
+        'aggr_list_multiplier': 2
+    }
+    msg = 'Error: aggr_list must be provided when aggr_list_multiplier is used with ONTAP REST 9.17 or later.'
+    assert create_and_apply(volume_module, args, module_args, fail=True)['msg'] == msg
+
+
 def test_rest_successfully_create_volume_with_tiering_policy():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),

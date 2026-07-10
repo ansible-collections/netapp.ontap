@@ -251,6 +251,8 @@ options:
     description:
       - The volume type, either read-write (RW) or data-protection (DP).
     type: str
+    choices: ['rw', 'dp']
+    default: 'rw'
 
   export_policy:
     description:
@@ -1191,7 +1193,7 @@ class NetAppOntapVolume:
             size_unit=dict(default='gb', choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'], type='str'),
             sizing_method=dict(choices=['add_new_resources', 'use_existing_resources'], type='str'),
             aggregate_name=dict(type='str', default=None),
-            type=dict(type='str', default=None),
+            type=dict(type='str', choices=['rw', 'dp'], default='rw'),
             export_policy=dict(type='str', default=None, aliases=['policy']),
             junction_path=dict(type='str', default=None),
             space_guarantee=dict(choices=['none', 'file', 'volume'], default=None),
@@ -2906,6 +2908,8 @@ class NetAppOntapVolume:
         if self.parameters.get('aggr_list') is not None:
             body['aggregates'] = [{'name': name} for name in self.parameters['aggr_list']]
         if self.parameters.get('aggr_list_multiplier') is not None:
+            if self.rest_api.meets_rest_minimum_version(True, 9, 17, 0) and self.parameters.get('aggr_list') is None:
+                self.module.fail_json(msg='Error: aggr_list must be provided when aggr_list_multiplier is used with ONTAP REST 9.17 or later.')
             body['constituents_per_aggregate'] = self.parameters['aggr_list_multiplier']
         return body
 

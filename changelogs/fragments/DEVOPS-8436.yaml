@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - na_ontap_volume - Updated code to check for `aggr_list` and return an error if `aggr_list_multiplier` is used without `aggr_list` in ONTAP REST 9.17 or later.
