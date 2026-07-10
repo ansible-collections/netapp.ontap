@@ -150,6 +150,7 @@ action_groups:
     - na_ontap_unix_user
     - na_ontap_user
     - na_ontap_user_role
+    - na_ontap_user_role_config
     - na_ontap_volume_autosize
     - na_ontap_volume_clone
     - na_ontap_volume_efficiency

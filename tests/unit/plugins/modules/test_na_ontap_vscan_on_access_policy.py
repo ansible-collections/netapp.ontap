@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_vscan_scanner_pool '''
@@ -19,8 +19,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import b
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
@@ -59,6 +59,7 @@ ZRR = zapi_responses({
 })
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     # with python 2.6, dictionaries are not ordered
@@ -68,6 +69,7 @@ def test_module_fail_when_required_args_missing():
         assert fragment in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_policy():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['empty'])
@@ -77,6 +79,7 @@ def test_get_nonexistent_policy():
     assert result is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_scanner():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info'])
@@ -86,6 +89,7 @@ def test_get_existing_scanner():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_create():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['empty']),
@@ -94,6 +98,7 @@ def test_successfully_create():
     assert create_and_apply(policy_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info'])
@@ -101,6 +106,7 @@ def test_create_idempotency():
     assert create_and_apply(policy_module, DEFAULT_ARGS)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_delete():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info']),
@@ -109,6 +115,7 @@ def test_successfully_delete():
     assert create_and_apply(policy_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotency():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['empty'])
@@ -116,6 +123,7 @@ def test_delete_idempotency():
     assert create_and_apply(policy_module, DEFAULT_ARGS, {'state': 'absent'})['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_create_and_enable_policy():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['empty']),
@@ -126,6 +134,7 @@ def test_successfully_create_and_enable_policy():
     assert create_and_apply(policy_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_disable_policy_and_delete():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info']),
@@ -136,6 +145,7 @@ def test_disable_policy_and_delete():
     assert create_and_apply(policy_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_policy():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info']),
@@ -145,12 +155,14 @@ def test_modify_policy():
     assert create_and_apply(policy_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_files_to_incluse_empty_error():
     args = {'file_ext_to_include': []}
     msg = 'Error: The value for file_ext_include cannot be empty'
     assert msg in create_module(policy_module, DEFAULT_ARGS, args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def module_error_disable_policy():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info']),
@@ -161,6 +173,7 @@ def module_error_disable_policy():
     assert 'Error modifying status Vscan on Access Policy' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('vscan-on-access-policy-get-iter', ZRR['error']),

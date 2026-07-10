@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "6cb45fd42e3a683fb2b2ae89186028f1fcc2a39ea0ebf92228c48515c7cfe86a",
+   "chksum_sha256": "64af8a35fedb6831394658e2a9f489823f8e5ea1eeb743f69d93cd774a24c38d",
    "format": 1
   },
   {
@@ -4838,6 +4838,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8475.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5c682c26d0324a694a534e0513155aae6697215ced96b0b8c1a63461134833fe",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -4981,7 +4988,7 @@
    "name": "meta/runtime.yml",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "65b3079dd5c3dd1ad908d05cb73c330093a76dde4befaaa8fb2b1c6e78b721b7",
+   "chksum_sha256": "f029cf055c2a29d501707f693730922cdf8464ab0dd28f740abeb8fd3b3298f5",
    "format": 1
   },
   {
@@ -6318,7 +6325,14 @@
    "name": "plugins/modules/na_ontap_user_role.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "eaf3907c38a286a50054cd5d6cb6bc4a70da15af75dc3cde212c790e1ddec7af",
+   "chksum_sha256": "f732a3032b516dcb2359c73e68669bc0d8a13004f5811eb41d76b974ff93048b",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/na_ontap_user_role_config.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "26f24274889c73ba8f9e515a4b5ef41ddf9da5150cad446a3814030dbf00ff82",
    "format": 1
   },
   {
@@ -6360,28 +6374,28 @@
    "name": "plugins/modules/na_ontap_vscan.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "aefc05c24d643c7d7d6a53e9fe2a35727e246d365354a43b9ea8618b97b9cd15",
+   "chksum_sha256": "6638cbba988dd8745656822e2ce67407c4a5ffd2ba976466b0d6eb855b633737",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_vscan_on_access_policy.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "52b69e7d3eb730808a514ca291d46a74de8d4cbb03f26cf3c6376690cbae36d3",
+   "chksum_sha256": "2bf18dd1ce51a52978d324a217d381ce9913a79fd25b7b846c88ec964de62197",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_vscan_on_demand_task.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "2a220a18324756817580aa9f7e62b6582b2cb3d318139c6035438d399175e23a",
+   "chksum_sha256": "1bb40bf29554a06e2cf004346a14ac9d2ded38e7be5fc891d679baf3ff3ff33c",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_vscan_scanner_pool.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "1110d15ef843bbc47e14158e388dbc22d53aa7947ca971dc24e932be0e506afb",
+   "chksum_sha256": "6fbfd73589764f594a3ac1b05d6a537654f0925849360acd147fccc56b74d9e6",
    "format": 1
   },
   {
@@ -8625,6 +8639,13 @@
    "format": 1
   },
   {
+   "name": "tests/unit/plugins/modules/test_na_ontap_user_role_config_rest.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "10a1f5de6c4e178c9266c88229b08bc1b710a6414c8228aab6901baf77b58332",
+   "format": 1
+  },
+  {
    "name": "tests/unit/plugins/modules/test_na_ontap_user_role_rest.py",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -8691,7 +8712,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_vscan_on_access_policy.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4c10dd51fcb317863760556f8686af01b2d30ea798e39afc53e275ab4b0dc4f4",
+   "chksum_sha256": "8c8be86ccb8c25d0478a0aa7448cb9692919718e98bd1af848bd0266278508ec",
    "format": 1
   },
   {

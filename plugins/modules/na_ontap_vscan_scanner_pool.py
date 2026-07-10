@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -61,6 +61,31 @@ options:
     - The name of the Virus scanner Policy
     choices: ['primary', 'secondary', 'idle']
     type: str
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 '''
 
 EXAMPLES = """
@@ -127,9 +152,11 @@ class NetAppOntapVscanScannerPool(object):
             scanner_pool=dict(required=True, type='str'),
             scanner_policy=dict(required=False, type='str', choices=['primary', 'secondary', 'idle'])
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            required_if=[['use_lambda', True, ('lambda_config',)]],
         )
         self.svm_uuid = None
         self.na_helper = NetAppModule()
@@ -141,6 +168,8 @@ class NetAppOntapVscanScannerPool(object):
             msg = 'REST requires ONTAP 9.6 or later for /protocols/vscan/{{svm.uuid}}/scanner-pools APIs'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
@@ -322,9 +351,11 @@ class NetAppOntapVscanScannerPool(object):
         api = 'protocols/vscan/%s/scanner-pools' % self.svm_uuid
         body = {
             'name': self.parameters['scanner_pool'],
-            'servers': self.parameters['hostnames'],
-            'privileged_users': self.parameters['privileged_users'],
         }
+        if 'privileged_users' in self.parameters:
+            body['privileged_users'] = self.parameters['privileged_users']
+        if 'hostnames' in self.parameters:
+            body['servers'] = self.parameters['hostnames']
         if 'scanner_policy' in self.parameters:
             body['role'] = self.parameters['scanner_policy']
 

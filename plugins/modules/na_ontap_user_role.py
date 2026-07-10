@@ -92,12 +92,35 @@ options:
       - Required with ZAPI.
     type: str
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - supports ZAPI and REST. REST requires ONTAP 9.7 or later.
   - supports check mode.
   - when trying to add a command to a role, ONTAP will affect other related commands too.
   - for example, 'volume modify' will affect 'volume create' and 'volume show', always provide all the related commands.
   - REST supports both role and rest-role from ONTAP 9.11.1 or later versions and only rest-role for earlier versions.
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 '''
 
 EXAMPLES = """
@@ -211,13 +234,16 @@ class NetAppOntapUserRole:
                 path=dict(required=True, type='str')
             ))
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
             mutually_exclusive=[('command_directory_name', 'privileges'),
                                 ('access_level', 'privileges'),
-                                ('query', 'privileges')]
+                                ('query', 'privileges')],
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)],
+            ],
         )
         self.owner_uuid = None
         self.role_modified = None
@@ -254,6 +280,8 @@ class NetAppOntapUserRole:
             msg = 'REST requires ONTAP 9.7 or later for security/roles APIs.'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if netapp_utils.has_netapp_lib() is False:
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             if not self.parameters.get('vserver'):

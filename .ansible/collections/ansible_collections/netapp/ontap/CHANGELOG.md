@@ -2,6 +2,9 @@
 
 ## 23.6.0
 
+### New Modules
+  - na_ontap_user_role_config - REST only support for managing local user account and password restrictions.
+
 ### Major Changes
   - na_ontap_user - AWS Lambda support added to the module.
   - na_ontap_kerberos_interface - AWS Lambda support added to the module.
@@ -31,6 +34,11 @@
   - na_ontap_fdss - AWS Lambda support added to the module.
   - na_ontap_file_security_permissions_acl - AWS Lambda support added to the module.
   - na_ontap_rest_cli - AWS Lambda support added to the module.
+  - na_ontap_vscan - AWS Lambda support added to the module.
+  - na_ontap_vscan_scanner_pool - AWS Lambda support added to the module.
+  - na_ontap_vscan_on_demand_task - AWS Lambda support added to the module.
+  - na_ontap_vscan_on_access_policy - AWS Lambda support added to the module.
+  - na_ontap_user_role - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_user - added support for `amqp` application in user management.

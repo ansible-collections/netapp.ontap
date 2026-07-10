@@ -1,0 +1,7 @@
+---
+major_changes:
+  - na_ontap_vscan - AWS Lambda support added to the module.
+  - na_ontap_vscan_scanner_pool - AWS Lambda support added to the module.
+  - na_ontap_vscan_on_demand_task - AWS Lambda support added to the module.
+  - na_ontap_vscan_on_access_policy - AWS Lambda support added to the module.
+  - na_ontap_user_role - AWS Lambda support added to the module.
