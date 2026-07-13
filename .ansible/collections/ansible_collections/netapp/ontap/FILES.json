@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "64af8a35fedb6831394658e2a9f489823f8e5ea1eeb743f69d93cd774a24c38d",
+   "chksum_sha256": "a0e95645e2fe90e379147263dc500d7d8d671c814add84fc17cf281596d461a8",
    "format": 1
   },
   {
@@ -4698,6 +4698,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8393.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "48bf7b8293484c0bb88d9857189356182204dd4af6a81b3d908ef204b9554ce8",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-8398.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -6038,7 +6045,7 @@
    "name": "plugins/modules/na_ontap_qtree.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "f004db9034c647a478cb709c694bbea6992dd61caf2b4be926f4559003174fe9",
+   "chksum_sha256": "3707ffde8c8d8749edaa57e46ea1ca4c26085d314448b80519b3a519a3f5b9ad",
    "format": 1
   },
   {
@@ -8341,7 +8348,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_qtree.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "d6ca60306c8a76c1131ebe3f0f5ed8fe650031134e1b55fea30a7b3440e4eaa2",
+   "chksum_sha256": "ce5a1775c35816c0a22cfda82a8150c8a5ff36e4727a25c9638a6da9d59510c3",
    "format": 1
   },
   {

@@ -105,16 +105,15 @@ options:
       - Set this parameter to 'true' for synchronous execution during delete.
       - Set this parameter to 'false' for asynchronous execution.
       - For asynchronous, execution exits as soon as the request is sent, and the qtree is deleted in background.
+      - The default value is 'true' if not set.
     type: bool
-    default: true
     version_added: 2.9.0
 
   time_out:
     description:
       - Maximum time to wait for qtree deletion in seconds when wait_for_completion is True.
       - Error out if task is not completed in defined time.
-      - Default is set to 3 minutes.
-    default: 180
+      - Default is set to 3 minutes or 180 seconds.
     type: int
     version_added: 2.9.0
 
@@ -135,6 +134,14 @@ options:
       - Only supported with REST and ONTAP 9.9 or later.
     type: str
     version_added: 21.21.0
+
+  rest_timeout:
+    version_added: 23.6.0
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
 
   lambda_config:
     description:
@@ -232,7 +239,6 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
@@ -253,10 +259,11 @@ class NetAppOntapQTree:
             oplocks=dict(required=False, type='str', choices=['enabled', 'disabled']),
             unix_permissions=dict(required=False, type='str'),
             force_delete=dict(required=False, type='bool', default=True),
-            wait_for_completion=dict(required=False, type='bool', default=True),
-            time_out=dict(required=False, type='int', default=180),
+            wait_for_completion=dict(required=False, type='bool'),
+            time_out=dict(required=False, type='int'),
             unix_user=dict(required=False, type='str'),
-            unix_group=dict(required=False, type='str')
+            unix_group=dict(required=False, type='str'),
+            rest_timeout=dict(required=False, type='int'),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.volume_uuid, self.qid = None, None
@@ -271,10 +278,17 @@ class NetAppOntapQTree:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['oplocks']
         partially_supported_rest_properties = [['unix_user', (9, 9)], ['unix_group', (9, 9)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        if self.use_rest:
+            if self.parameters.get('wait_for_completion') is None:
+                self.parameters['wait_for_completion'] = True
+            if self.parameters.get('time_out') is None:
+                self.parameters['time_out'] = 180
+
         if not self.use_rest:
             if self.parameters.get('use_lambda'):
                 self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
@@ -354,9 +368,17 @@ class NetAppOntapQTree:
             body = {'volume': {'name': self.parameters['flexvol_name']},
                     'svm': {'name': self.parameters['vserver']}}
             body.update(self.form_create_modify_body_rest())
-            query = dict(return_timeout=10)
-            dummy, error = rest_generic.post_async(self.rest_api, api, body, query)
+            query = {'return_timeout': 0} if not self.parameters.get('wait_for_completion') else None
+            timeout = 0 if not self.parameters.get('wait_for_completion') else self.parameters.get('time_out')
+            dummy, error = rest_generic.post_async(self.rest_api, api, body, query, job_timeout=timeout)
             if error:
+                if 'job reported error:' in error and 'Timeout error: Process still running' in error:
+                    if not self.parameters['wait_for_completion']:
+                        warning = "Process is still running in the background, exiting with no further waiting as 'wait_for_completion' is set to false."
+                    else:
+                        warning = ('Qtree creation is still in progress after %d seconds.' % self.parameters['time_out'])
+                    self.module.warn(warning)
+                    return
                 if "job reported error:" in error and "entry doesn't exist" in error:
                     # ignore RBAC issue with FSx - BURT1525998
                     self.module.warn('Ignoring job status, assuming success.')
@@ -371,14 +393,16 @@ class NetAppOntapQTree:
         """
         if self.use_rest:
             api = "storage/qtrees/%s" % self.volume_uuid
-            query = {'return_timeout': 120}
-            response, error = rest_generic.delete_async(self.rest_api, api, self.qid, query)
-            if self.parameters['wait_for_completion']:
-                dummy, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
+            query = {'return_timeout': 0} if not self.parameters.get('wait_for_completion') else None
+            timeout = 0 if not self.parameters.get('wait_for_completion') else self.parameters['time_out']
+            response, error = rest_generic.delete_async(self.rest_api, api, self.qid, query, job_timeout=timeout)
             if error:
-                if not self.parameters['wait_for_completion'] and \
-                        'job reported error:' in error and 'Timeout error: Process still running' in error:
-                    self.module.warn("Process is still running in the background, exiting with no further waiting as 'wait_for_completion' is set to false.")
+                if 'job reported error:' in error and 'Timeout error: Process still running' in error:
+                    if not self.parameters['wait_for_completion']:
+                        warning = "Process is still running in the background, exiting with no further waiting as 'wait_for_completion' is set to false."
+                    else:
+                        warning = ('Qtree deletion is still in progress after %d seconds.' % self.parameters['time_out'])
+                    self.module.warn(warning)
                     return
                 self.module.fail_json(msg='Error deleting qtree %s: %s' % (self.parameters['name'], error))
 
@@ -426,9 +450,17 @@ class NetAppOntapQTree:
         if self.use_rest:
             body = self.form_create_modify_body_rest()
             api = "storage/qtrees/%s" % self.volume_uuid
-            query = dict(return_timeout=10)
+            query = {'return_timeout': 0} if not self.parameters.get('wait_for_completion') else None
+            timeout = 0 if not self.parameters.get('wait_for_completion') else self.parameters['time_out']
             dummy, error = rest_generic.patch_async(self.rest_api, api, self.qid, body, query)
             if error:
+                if 'job reported error:' in error and 'Timeout error: Process still running' in error:
+                    if not self.parameters['wait_for_completion']:
+                        warning = "Process is still running in the background, exiting with no further waiting as 'wait_for_completion' is set to false."
+                    else:
+                        warning = ('Qtree modify is still in progress after %d seconds.' % self.parameters['time_out'])
+                    self.module.warn(warning)
+                    return
                 self.module.fail_json(msg='Error modifying qtree %s: %s' % (self.parameters['name'], error))
         else:
             self.create_or_modify_qtree_zapi('qtree-modify', 'Error modifying qtree %s: %s')

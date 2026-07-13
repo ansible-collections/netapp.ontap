@@ -319,19 +319,6 @@ def test_idempotent_delete_rest():
     assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed'] is False
 
 
-def test_successful_delete_rest_job_running_warning():
-    ''' test delete qtree warning in rest'''
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
-        ('GET', 'storage/qtrees', SRR['qtree_record']),
-        ('DELETE', 'storage/qtrees/uuid/1', SRR['process_running_error'])
-    ])
-    args = {'use_rest': 'always', 'state': 'absent', 'wait_for_completion': False}
-    assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
-    print_warnings()
-    assert_warning_was_raised("Process is still running in the background, exiting with no further waiting as 'wait_for_completion' is set to false.")
-
-
 def test_successful_modify_rest():
     ''' test modify qtree rest '''
     register_responses([
@@ -429,3 +416,90 @@ def test_rename_qtree_not_used_with_rest():
     my_obj = create_module(qtree_module, DEFAULT_ARGS, module_args)
     error = 'Internal error, use modify with REST'
     assert error in expect_and_capture_ansible_exception(my_obj.rename_qtree, 'fail')['msg']
+
+
+def test_create_qtree_still_running_warning():
+    ''' Test qtree create still running warning '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['empty_records']),
+        ('POST', 'storage/qtrees', SRR['process_running_error'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'wait_for_completion': False
+    }
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Process is still running in the background, "
+                              "exiting with no further waiting as 'wait_for_completion' is set to false.")
+
+
+def test_create_qtree_still_running_warning_with_wait():
+    ''' Test qtree create still running warning '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['empty_records']),
+        ('POST', 'storage/qtrees', SRR['process_running_error'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'wait_for_completion': True
+    }
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Qtree creation is still in progress after 180 seconds.")
+
+
+def test_modify_qtree_still_running_warning():
+    ''' test modify qtree rest with warning'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['qtree_record']),
+        ('PATCH', 'storage/qtrees/uuid/1', SRR['process_running_error'])
+    ])
+    args = {'use_rest': 'always', 'unix_permissions': '777', 'wait_for_completion': False}
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Process is still running in the background, "
+                              "exiting with no further waiting as 'wait_for_completion' is set to false.")
+
+
+def test_modify_qtree_still_running_warning_with_wait():
+    ''' test modify qtree rest with warning'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['qtree_record']),
+        ('PATCH', 'storage/qtrees/uuid/1', SRR['process_running_error'])
+    ])
+    args = {'use_rest': 'always', 'unix_permissions': '777', 'wait_for_completion': True}
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Qtree modify is still in progress after 180 seconds.")
+
+
+def test_delete_qtree_still_running_warning():
+    ''' test delete qtree rest with warning'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['qtree_record']),
+        ('DELETE', 'storage/qtrees/uuid/1', SRR['process_running_error'])
+    ])
+    args = {'use_rest': 'always', 'state': 'absent', 'wait_for_completion': False}
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Process is still running in the background, "
+                              "exiting with no further waiting as 'wait_for_completion' is set to false.")
+
+
+def test_delete_qtree_still_running_warning_with_wait():
+    ''' test delete qtree rest with warning'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['qtree_record']),
+        ('DELETE', 'storage/qtrees/uuid/1', SRR['process_running_error'])
+    ])
+    args = {'use_rest': 'always', 'state': 'absent', 'wait_for_completion': True}
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Qtree deletion is still in progress after 180 seconds.")
