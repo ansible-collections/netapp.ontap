@@ -49,9 +49,8 @@
 ### Bug Fixes
   - na_ontap_nvme_namespace - Fixed issue with NVME Namespace get operation.
   - na_ontap_qtree - Fixed issue with timeout in DELETE operation and added option `rest_timeout` to avoid timeout in GET.
-
-### Bug Fixes
   - na_ontap_volume - Updated code to check for `aggr_list` and return an error if `aggr_list_multiplier` is used without `aggr_list` in ONTAP REST 9.17 or later.
+  - na_ontap_vserver_create - fixed undefined variable error.
 
 ## 23.5.0
 

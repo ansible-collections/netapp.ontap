@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "a0e95645e2fe90e379147263dc500d7d8d671c814add84fc17cf281596d461a8",
+   "chksum_sha256": "af3a738f135a01849b318d4199e58a5f03fbeae425455949d1edee5da24993ae",
    "format": 1
   },
   {
@@ -4901,6 +4901,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/github-320.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5d9601e12fae908c0aaa76459a0f7eaf313b5d07dfad42ba3654228c9f782ec0",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/github-56.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -6990,7 +6997,7 @@
    "name": "roles/na_ontap_vserver_create/tasks/main.yml",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "5c159892dca02dbb381009311975b0adf0b95ebad926e3678e86524041f5a673",
+   "chksum_sha256": "cab213d6c080146237f5a6f82e5628496c93815a27265668696b4c5728fd3c11",
    "format": 1
   },
   {
