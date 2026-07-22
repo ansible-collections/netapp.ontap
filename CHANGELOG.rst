@@ -4,6 +4,66 @@ NetApp ONTAP Collection Release Notes
 
 .. contents:: Topics
 
+v23.6.0
+=======
+
+Major Changes
+-------------
+
+- na_ontap_cg_snapshot - AWS Lambda support added to the module.
+- na_ontap_cli_timeout - AWS Lambda support added to the module.
+- na_ontap_ems_config - AWS Lambda support added to the module.
+- na_ontap_ems_destination - AWS Lambda support added to the module.
+- na_ontap_ems_filter - AWS Lambda support added to the module.
+- na_ontap_fdsd - AWS Lambda support added to the module.
+- na_ontap_fdsp - AWS Lambda support added to the module.
+- na_ontap_fdspt - AWS Lambda support added to the module.
+- na_ontap_fdss - AWS Lambda support added to the module.
+- na_ontap_file_security_permissions_acl - AWS Lambda support added to the module.
+- na_ontap_fpolicy_event - AWS Lambda support added to the module.
+- na_ontap_fpolicy_ext_engine - AWS Lambda support added to the module.
+- na_ontap_fpolicy_policy - AWS Lambda support added to the module.
+- na_ontap_fpolicy_scope - AWS Lambda support added to the module.
+- na_ontap_fpolicy_status - AWS Lambda support added to the module.
+- na_ontap_kerberos_interface - AWS Lambda support added to the module.
+- na_ontap_kerberos_realm - AWS Lambda support added to the module.
+- na_ontap_login_messages - AWS Lambda support added to the module.
+- na_ontap_nvme_namespace - AWS Lambda support added to the module.
+- na_ontap_publickey - AWS Lambda support added to the module.
+- na_ontap_rest_cli - AWS Lambda support added to the module.
+- na_ontap_security_key_manager - AWS Lambda support added to the module.
+- na_ontap_security_ssh - AWS Lambda support added to the module.
+- na_ontap_snaplock_clock - AWS Lambda support added to the module.
+- na_ontap_unix_group - AWS Lambda support added to the module.
+- na_ontap_unix_user - AWS Lambda support added to the module.
+- na_ontap_user - AWS Lambda support added to the module.
+- na_ontap_user_role - AWS Lambda support added to the module.
+- na_ontap_vscan - AWS Lambda support added to the module.
+- na_ontap_vscan_on_access_policy - AWS Lambda support added to the module.
+- na_ontap_vscan_on_demand_task - AWS Lambda support added to the module.
+- na_ontap_vscan_scanner_pool - AWS Lambda support added to the module.
+- na_ontap_vserver_audit - AWS Lambda support added to the module.
+
+Minor Changes
+-------------
+
+- na_ontap_ems_filter - Added support for rule deletion in REST.
+- na_ontap_user - added support for `amqp` application in user management.
+- na_ontap_volume - new REST only options added under `event_log` and `attack_detection_parameters`.
+- na_ontap_volume - updated docs for volume `type`.
+
+Bugfixes
+--------
+
+- na_ontap_nvme_namespace - Fixed issue with NVME Namespace get operation.
+- na_ontap_qtree - Fixed issue with timeout in DELETE operation and added option `rest_timeout` to avoid timeout in GET.
+- na_ontap_volume - Updated code to check for `aggr_list` and return an error if `aggr_list_multiplier` is used without `aggr_list` in ONTAP REST 9.17 or later.
+- na_ontap_vserver_create - fixed undefined variable error.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_user_role_config - NetApp ONTAP local user account restrictions
 
 v23.5.0
 =======

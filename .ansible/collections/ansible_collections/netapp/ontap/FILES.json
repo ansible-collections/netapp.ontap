@@ -81,7 +81,7 @@
    "name": "CHANGELOG.rst",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "1a28b624f9eee8b19e04f1ace1457cf4eee33954f0a2001d252e82a06f6cc0a0",
+   "chksum_sha256": "c161a2bea48cba8216742852243ca242180f61e2c47c3c03cce407011cf2d2eb",
    "format": 1
   },
   {
@@ -109,7 +109,7 @@
    "name": "changelogs/changelog.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "65bd459a32f3044cec41dbd1b60b07a2c2f604ad1798805f7772835c70355198",
+   "chksum_sha256": "8f80f4208fd44b9201548b47b983a71a5b249c19ab288be2d549b7c0dd675b7e",
    "format": 1
   },
   {
