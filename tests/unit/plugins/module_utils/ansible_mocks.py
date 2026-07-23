@@ -8,7 +8,7 @@ import json
 import pytest
 import sys
 from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
+from ansible.module_utils.common.text.converters import to_bytes
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import ZAPI_DEPRECATION_MESSAGE
