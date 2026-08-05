@@ -349,6 +349,20 @@ options:
     choices: ['disabled', 'dry_run']
     version_added: 23.5.0
 
+  is_space_reporting_logical:
+    description:
+      - Specifies whether logical space reporting is enabled for the SVM.
+      - Only supported with REST, requires ONTAP 9.11.1 or later.
+    type: bool
+    version_added: 23.7.0
+
+  is_space_enforcement_logical:
+    description:
+      - Specifies whether logical space enforcement is enabled for the SVM.
+      - Only supported with REST, requires ONTAP 9.11.1 or later.
+    type: bool
+    version_added: 23.7.0
+
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -477,6 +491,8 @@ class NetAppOntapSVM():
             auto_enable_analytics=dict(type='bool', required=False),
             auto_enable_activity_tracking=dict(type='bool', required=False),
             anti_ransomware_default_volume_state=dict(type='str', choices=['disabled', 'dry_run'], required=False),
+            is_space_reporting_logical=dict(type='bool', required=False),
+            is_space_enforcement_logical=dict(type='bool', required=False),
         ))
 
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
@@ -594,6 +610,10 @@ class NetAppOntapSVM():
         if use_rest and self.parameters.get('anti_ransomware_default_volume_state') is not None and \
                 not self.rest_api.meets_rest_minimum_version(use_rest, 9, 10, 1):
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('anti_ransomware_default_volume_state', '9.10.1', use_rest=use_rest))
+        for option in ('is_space_reporting_logical', 'is_space_enforcement_logical'):
+            if self.parameters.get(option) is not None and \
+                    (not use_rest or not self.rest_api.meets_rest_minimum_version(use_rest, 9, 11, 1)):
+                self.module.fail_json(msg=self.rest_api.options_require_ontap_version(option, '9.11.1', use_rest=use_rest))
         self.validate_int_or_string(self.parameters.get('max_volumes'), 'unlimited')
         return use_rest
 
@@ -648,6 +668,8 @@ class NetAppOntapSVM():
         vserver_details['auto_enable_analytics'] = self.na_helper.safe_get(vserver_details, ['auto_enable_analytics'])
         vserver_details['auto_enable_activity_tracking'] = self.na_helper.safe_get(vserver_details, ['auto_enable_activity_tracking'])
         vserver_details['anti_ransomware_default_volume_state'] = self.na_helper.safe_get(vserver_details, ['anti_ransomware_default_volume_state'])
+        vserver_details['is_space_reporting_logical'] = self.na_helper.safe_get(vserver_details, ['is_space_reporting_logical'])
+        vserver_details['is_space_enforcement_logical'] = self.na_helper.safe_get(vserver_details, ['is_space_enforcement_logical'])
 
         return vserver_details
 
@@ -709,6 +731,8 @@ class NetAppOntapSVM():
                 fields += ',certificate'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
                 fields += ',ndmp,anti_ransomware_default_volume_state'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
+                fields += ',is_space_reporting_logical,is_space_enforcement_logical'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
                 fields += ',s3'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
@@ -811,6 +835,10 @@ class NetAppOntapSVM():
             body['storage.limit'] = self.parameters['storage_limit']
         if 'storage_limit_threshold_alert' in keys_to_modify:
             body['storage.limit_threshold_alert'] = self.parameters['storage_limit_threshold_alert']
+        if 'is_space_reporting_logical' in keys_to_modify:
+            body['is_space_reporting_logical'] = self.parameters['is_space_reporting_logical']
+        if 'is_space_enforcement_logical' in keys_to_modify:
+            body['is_space_enforcement_logical'] = self.parameters['is_space_enforcement_logical']
         return body, allowed_protocols
 
     def get_allowed_protocols_and_max_volumes(self):
