@@ -104,7 +104,8 @@ class NetAppOntapDisks():
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # If min_spares is not specified min_spares is 1 if SSD, min_spares is 2 for any other disk type.
-        self.parameters['min_spares'] = 1 if self.parameters.get('disk_type') in ('SSD', 'SSD_NVM') else 2
+        if 'min_spares' not in self.parameters:
+            self.parameters['min_spares'] = 1 if self.parameters.get('disk_type') in ('SSD', 'SSD_NVM') else 2
 
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
