@@ -12,7 +12,7 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, \
-    register_responses
+    register_responses, get_mock_record
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_service_processor_network \
     import NetAppOntapServiceProcessorNetwork as sp_module  # module under test
 
@@ -314,3 +314,23 @@ def test_enable_sp_rest_ip(sleep):
     ])
     args = {'ip_address': '1.1.1.1', 'is_enabled': True, 'netmask': '255.255.255.0'}
     assert create_and_apply(sp_module, mock_args(enable=True, use_rest=True), args)['changed']
+
+
+def test_modify_sp_rest_enabled_implicit():
+    ''' ip params without is_enabled set enabled in REST PATCH body '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'cluster/nodes', SRR['sp_enabled_info']),
+        ('GET', 'cluster/nodes', SRR['sp_enabled_info']),  # for other interface config
+        ('PATCH', 'cluster/nodes/5dd7aed0', SRR['success'])
+    ])
+    args = {'ip_address': '1.1.1.2', 'gateway_ip_address': '2.2.2.2', 'netmask': '255.255.248.0'}
+    base = {k: v for k, v in mock_args(use_rest=True).items() if k != 'is_enabled'}
+    assert create_and_apply(sp_module, base, args)['changed']
+    assert get_mock_record().is_record_in_json(
+        {'service_processor': {
+            'ipv4_interface': {'enabled': True, 'address': '1.1.1.2', 'gateway': '2.2.2.2', 'netmask': '255.255.248.0'},
+            'ipv6_interface': {'enabled': False}
+        }},
+        'PATCH', 'cluster/nodes/5dd7aed0'
+    )
