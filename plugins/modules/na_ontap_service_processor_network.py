@@ -444,6 +444,9 @@ class NetAppOntapServiceProcessorNetwork:
     def modify_service_processor_network_rest(self, modify):
         """Modify interface configuration service processor using REST API"""
         target_enabled = self.parameters.get('is_enabled')
+        # ONTAP REST requires 'enabled' whenever IP params are present in the body.
+        if target_enabled is None and any(self.parameters.get(k) for k in ['ip_address', 'gateway_ip_address', 'netmask', 'prefix_length']):
+            target_enabled = True
         address_type = self.parameters['address_type']
 
         body = {'service_processor': {
