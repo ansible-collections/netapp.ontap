@@ -726,6 +726,27 @@ def test_module_try_to_create_domain_without_ipspace(mock_request, patch_ansible
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_try_to_create_domain_without_mtu(mock_request, patch_ansible):
+    ''' mtu is a required property of the REST create body '''
+    args = dict(default_args())
+    args['name'] = "domain1"
+    args['ipspace'] = "ip1"
+    args['state'] = "present"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['zero_record'],                # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    msg = "Error: mtu is a required option when creating a broadcast domain with REST"
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_module_modify_ipspace(mock_request, patch_ansible):
     ''' test modify ipspace '''
     args = dict(default_args())
