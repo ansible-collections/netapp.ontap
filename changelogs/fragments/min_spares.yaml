@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_disks - ``min_spares`` was ignored and always reset to the default; honor a caller-supplied value.
