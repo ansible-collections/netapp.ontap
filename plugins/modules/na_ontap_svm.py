@@ -61,12 +61,14 @@ options:
     description:
       - Root volume of the SVM.
       - Cannot be modified after creation.
+      - Not supported with REST.
     type: str
 
   root_volume_aggregate:
     description:
       - The aggregate on which the root volume will be created.
       - Cannot be modified after creation.
+      - Not supported with REST.
     type: str
 
   root_volume_security_style:
@@ -79,6 +81,7 @@ options:
       -   The 'unified' security style, which applies only to Infinite Volumes,
           cannot be applied to a Vserver's root volume.
       -   Cannot be modified after creation.
+      -   Not supported with REST.
     choices: ['unix', 'ntfs', 'mixed', 'unified']
     type: str
 
@@ -373,6 +376,9 @@ options:
 
 notes:
   - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
+  - C(root_volume), C(root_volume_aggregate) and C(root_volume_security_style) are supported with ZAPI only.
+    With REST, ONTAP creates the SVM root volume as <name>_root; set its security style through
+    C(volume_security_style) in M(netapp.ontap.na_ontap_volume).
 '''
 
 EXAMPLES = """

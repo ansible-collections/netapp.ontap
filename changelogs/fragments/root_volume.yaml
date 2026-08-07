@@ -1,0 +1,2 @@
+minor_changes:
+  - na_ontap_svm - document that ``root_volume``, ``root_volume_aggregate`` and ``root_volume_security_style`` are supported with ZAPI only.
