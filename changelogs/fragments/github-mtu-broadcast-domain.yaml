@@ -1,0 +1,4 @@
+---
+bugfixes:
+  - na_ontap_broadcast_domain - fail with a clear message instead of ``KeyError``
+    when creating a broadcast domain with REST and ``mtu`` is omitted.

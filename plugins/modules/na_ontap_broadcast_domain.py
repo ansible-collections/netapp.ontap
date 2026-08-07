@@ -41,6 +41,7 @@ options:
   mtu:
     description:
       - Specify the required mtu for the broadcast domain.
+      - This option is required when creating a broadcast domain with REST.
     type: int
   ipspace:
     description:
@@ -665,6 +666,9 @@ class NetAppOntapBroadcastDomain(object):
                         else:
                             self.parameters.pop('from_name')
         modify = self.get_modify_attributes(current, split) if cd_action is None else {}
+        # mtu is a required property of the REST create body; ZAPI defaults it.
+        if cd_action == 'create' and self.use_rest and 'mtu' not in self.parameters:
+            self.module.fail_json(msg="Error: mtu is a required option when creating a broadcast domain with REST")
         if self.na_helper.changed and not self.module.check_mode:
             if split:
                 self.split_broadcast_domain()
