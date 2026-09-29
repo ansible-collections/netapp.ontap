@@ -141,7 +141,7 @@ RETURN = """
 from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppONTAPIscsiSecurity:
@@ -188,13 +188,13 @@ class NetAppONTAPIscsiSecurity:
         Get current initiator.
         :return: dict of current initiator details.
         """
-        params = {'fields': '*', 'initiator': self.parameters['initiator']}
+        query = {'fields': '*', 'initiator': self.parameters['initiator'], 'svm.uuid': self.uuid}
         api = 'protocols/san/iscsi/credentials'
-        message, error = self.rest_api.get(api, params)
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+
         if error is not None:
             self.module.fail_json(msg="Error on fetching initiator: %s" % error)
-        if message['num_records'] > 0:
-            record = message['records'][0]
+        if record:
             initiator_details = {'auth_type': record['authentication_type']}
             if initiator_details['auth_type'] == 'chap':
                 if record['chap'].get('inbound'):
@@ -241,7 +241,7 @@ class NetAppONTAPIscsiSecurity:
             body['initiator_address'] = {'ranges': address_info}
         body['svm'] = {'uuid': self.uuid, 'name': self.parameters['vserver']}
         api = 'protocols/san/iscsi/credentials'
-        dummy, error = self.rest_api.post(api, body)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error is not None:
             self.module.fail_json(msg="Error on creating initiator: %s" % error)
 
@@ -250,8 +250,8 @@ class NetAppONTAPIscsiSecurity:
         Delete initiator.
         :return: None.
         """
-        api = 'protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
-        dummy, error = self.rest_api.delete(api)
+        api = 'protocols/san/iscsi/credentials/%s/%s' % (self.uuid, self.parameters['initiator'])
+        dummy, error = rest_generic.delete_async(self.rest_api, api, None)
         if error is not None:
             self.module.fail_json(msg="Error on deleting initiator: %s" % error)
 
@@ -312,8 +312,9 @@ class NetAppONTAPIscsiSecurity:
         address_info = self.get_address_info(modify.get('address_ranges'))
         if address_info is not None:
             body['initiator_address'] = {'ranges': address_info}
-        api = 'protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
-        dummy, error = self.rest_api.patch(api, body)
+        api = 'protocols/san/iscsi/credentials/%s' % (self.uuid)
+
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['initiator'], body)
         if error is not None:
             self.module.fail_json(msg="Error on modifying initiator: %s - params: %s" % (error, body))
 
@@ -355,15 +356,14 @@ class NetAppONTAPIscsiSecurity:
         Get a svm's UUID
         :return: uuid of the svm.
         """
-        params = {'fields': 'uuid', 'name': self.parameters['vserver']}
+        query = {'fields': 'uuid', 'name': self.parameters['vserver']}
         api = "svm/svms"
-        message, error = self.rest_api.get(api, params)
-        record, error = rrh.check_for_0_or_1_records(api, message, error)
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error is not None:
             self.module.fail_json(msg="Error on fetching svm uuid: %s" % error)
         if record is None:
             self.module.fail_json(msg="Error on fetching svm uuid, SVM not found: %s" % self.parameters['vserver'])
-        return message['records'][0]['uuid']
+        return record['uuid']
 
 
 def main():

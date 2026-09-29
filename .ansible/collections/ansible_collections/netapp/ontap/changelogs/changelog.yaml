@@ -3836,3 +3836,70 @@ releases:
       name: na_ontap_user_role_config
       namespace: ''
     release_date: '2026-07-21'
+  24.0.0:
+    changes:
+      bugfixes:
+      - na_ontap_iscsi_security - Fixed issue with querying iscsi security settings
+        for a given initiator based on svm.
+      - na_ontap_security_certificates - Fixed issue with creating or installing certificates
+        of same name with different type.
+      - na_ontap_snapmirror - Fixed issue with intermittent initialization failure
+        post creation.
+      major_changes:
+      - na_ontap_active_directory - AWS Lambda support added to the module.
+      - na_ontap_active_directory_domain_controllers - AWS Lambda support added to
+        the module.
+      - na_ontap_dns - GCNV support added to the module.
+      - na_ontap_ems_filter - GCNV support added to the module.
+      - na_ontap_export_policy - GCNV support added to the module.
+      - na_ontap_export_policy_rule - GCNV support added to the module.
+      - na_ontap_ldap_client - GCNV support added to the module.
+      - na_ontap_license - GCNV support added to the module.
+      - na_ontap_nvme - AWS Lambda support added to the module.
+      - na_ontap_nvme_subsystem - AWS Lambda support added to the module.
+      - na_ontap_qtree - GCNV support added to the module.
+      - na_ontap_quotas - GCNV support added to the module.
+      - na_ontap_rest_cli - GCNV support added to the module.
+      - na_ontap_rest_info - GCNV support added to the module.
+      - na_ontap_restit - GCNV support added to the module.
+      - na_ontap_security_certificates - AWS Lambda support added to the module.
+      - na_ontap_security_ipsec_config - AWS Lambda support added to the module.
+      - na_ontap_security_ipsec_policy - AWS Lambda support added to the module.
+      - na_ontap_snapshot - GCNV support added to the module.
+      - na_ontap_snapshot_policy - GCNV support added to the module.
+      - na_ontap_volume - GCNV support added to the module.
+      minor_changes:
+      - Replaced deprecated imports across collection.
+      - na_ontap_cifs_server - Added new REST only option `advertised_kdc_encryptions`,
+        requires ONTAP 9.13.1 or later.
+      - na_ontap_export_policy_rule - New REST only option `allow_nfs_tls_only`, requires
+        ONTAP 9.19.1 or later.
+      - na_ontap_log_forward - Added rest only option `message_format`, requires ONTAP
+        9.13.1 or later.
+      - na_ontap_rest_info - Support added for ``security`` endpoints.
+      - na_ontap_rest_info - Support added for `protocols/nfs/tls/interfaces`.
+      - na_ontap_security_config - New REST only option `software_data_encryption`.
+      - na_ontap_snapmirror - updated example for initializing a snapmirror relationship.
+      - na_ontap_svm - New REST only options `is_space_reporting_logical`, `is_space_enforcement_logical`,
+        requires ONTAP 9.11.1 or later.
+    fragments:
+    - DEVOPS-8294.yaml
+    - DEVOPS-8430.yaml
+    - DEVOPS-8463.yaml
+    - DEVOPS-8481.yaml
+    - DEVOPS-8515.yaml
+    - DEVOPS-8519.yaml
+    - DEVOPS-8523.yaml
+    - DEVOPS-8536.yaml
+    - DEVOPS-8543.yaml
+    - DEVOPS-8545.yaml
+    - DEVOPS-8555.yaml
+    - DEVOPS-8556.yaml
+    - DEVOPS-8558.yaml
+    - DEVOPS-8562.yaml
+    - DEVOPS-8622.yaml
+    - DEVOPS-8628.yaml
+    - DEVOPS-8629.yaml
+    - github-338.yaml
+    - github-355.yaml
+    release_date: '2026-09-29'

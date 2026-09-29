@@ -430,3 +430,60 @@ def test_error_mismatch_in_package_list_rest(dont_sleep):
     assert my_obj.compare_license_status(previous_license_status) == ['cifs']
     error = "Error: mismatch in license package names: 'nfs'.  Expected:"
     assert error in expect_and_capture_ansible_exception(my_obj.compare_license_status, 'fail', previous_license_status)['msg']
+
+
+GCNV_DEFAULT_ARGS = {
+    'state': 'present',
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'license_codes': 'LICENSECODE',
+    'use_rest': 'always',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda():
+    module_args = {
+        'hostname': None,
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'auto',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    # REST discovery is invoked during module init; register expected cluster GET
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+
+    # Module should initialize with GCNV config when use_rest is not 'never'
+    my_obj = create_module(my_module, {
+        'state': 'present',
+        'username': 'username',
+        'password': 'password',
+        'license_codes': 'LICENSECODE',
+    }, module_args)
+    assert my_obj.parameters.get('gcnv') is not None

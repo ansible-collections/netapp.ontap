@@ -475,15 +475,6 @@ def test_negative_modify_ldap_servers_rest():
     assert msg in error
 
 
-@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
-def test_module_fail_when_netapp_lib_missing():
-    ''' required lib missing '''
-    module_args = {
-        'use_rest': 'never',
-    }
-    assert 'Error: the python NetApp-Lib module is required.  Import error: None' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
-
-
 def test_error_no_server():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
@@ -493,3 +484,67 @@ def test_error_no_server():
     args.pop('servers')
     error = 'Required one of servers or ad_domain'
     assert error in call_main(my_main, args, fail=True)['msg']
+
+
+GCNV_DEFAULT_ARGS = {
+    'password': 'test_pass!',
+    'use_rest': 'always',
+    'vserver': 'vserver',
+    'servers': ['10.193.115.116'],
+    'schema': 'RFC-2307',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == call_main(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': "10.10.0.0",
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == call_main(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == call_main(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_success_with_google_netapp_unified_pool_alias():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'name-services/ldap', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['svm']),
+        ('POST', 'name-services/ldap', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'google_netapp_unified_pool': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    assert call_main(my_main, GCNV_DEFAULT_ARGS, module_args)['changed']

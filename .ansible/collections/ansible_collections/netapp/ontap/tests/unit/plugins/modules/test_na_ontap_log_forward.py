@@ -9,6 +9,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
     AnsibleFailJson, AnsibleExitJson, patch_ansible
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_log_forward \
     import NetAppOntapLogForward as log_forward_module  # module under test
@@ -18,24 +19,18 @@ if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (400, None, "Expected error"),
-    # module specific responses
+SRR = rest_responses({
     'log_forward_record': (200, {
         "records": [{
             "address": "10.11.12.13",
             "facility": "user",
             "port": 514,
             "protocol": "udp_unencrypted",
-            "verify_server": False
+            "verify_server": False,
+            "message_format": "legacy_netapp",
         }]
     }, None)
-}
+})
 
 
 class MockONTAPConnection(object):
@@ -316,9 +311,10 @@ class TestMyModule(unittest.TestCase):
         data = self.set_default_args()
         data['state'] = 'present'
         data['facility'] = 'kern'
+        data['message_format'] = 'rfc_5424'
         set_module_args(data)
         mock_request.side_effect = [
-            SRR['is_rest'],
+            SRR['is_rest_9_13_1'],
             SRR['log_forward_record'],  # get
             SRR['empty_good'],  # delete
             SRR['empty_good'],  # post

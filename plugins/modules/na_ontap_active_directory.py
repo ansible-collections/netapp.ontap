@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2025, NetApp Inc.
+# (c) 2020-2026, NetApp Inc.
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -67,9 +67,32 @@ options:
       - Modifying the organizational unit is not supported. The object must be deleted and recreated.
     type: str
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - Supports check_mode.
   - supports ZAPI and REST. REST requires ONTAP 9.12.1 or later.
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 '''
 EXAMPLES = """
 - name: Create active directory account.
@@ -122,7 +145,7 @@ RETURN = """
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
@@ -141,9 +164,11 @@ class NetAppOntapActiveDirectory:
             force_account_overwrite=dict(type="bool", default=None),
             organizational_unit=dict(type="str", default=None)
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            required_if=[('use_lambda', True, ('lambda_config',))],
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
@@ -155,6 +180,8 @@ class NetAppOntapActiveDirectory:
             msg = 'REST requires ONTAP 9.12.1 or later for active directory APIs'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])

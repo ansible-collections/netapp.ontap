@@ -245,7 +245,7 @@ def test_rest_error_creating_policy():
 def test_rest_successful_modify():
     '''Test successful rest create'''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'cluster', SRR['is_rest_9_19_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/10', copy.deepcopy(SRR['get_export_policy_rules'])),
         ('PATCH', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_good'])
@@ -261,7 +261,8 @@ def test_rest_successful_modify():
         'rule_index': 10,
         'allow_device_creation': False,
         'allow_suid': False,
-        'chown_mode': 'unrestricted'
+        'chown_mode': 'unrestricted',
+        'allow_nfs_tls_only': True
     }
     assert create_and_apply(policy_rule, DEFAULT_ARGS, module_args)['changed']
 
@@ -381,3 +382,80 @@ def test_rest_delete_no_index_multiple():
     assert msg in create_and_apply(policy_rule, DEFAULT_ARGS, module_args, fail=True)['msg']
     module_args['force_delete_on_first_match'] = True
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+GCNV_DEFAULT_ARGS = {
+    'name': 'test',
+    'client_match': ['1.1.1.0', '0.0.0.0/0'],
+    'vserver': 'test',
+    'protocol': 'nfs',
+    'anonymous_user_id': '65534',
+    'super_user_security': ['any'],
+    'ntfs_unix_security': 'fail',
+    'ro_rule': 'any',
+    'rw_rule': 'any',
+    'allow_device_creation': True,
+    'allow_suid': True,
+    'chown_mode': 'restricted',
+    'use_rest': 'always',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': "10.10.0.0",
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_success_with_google_netapp_unified_pool_alias():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/nfs/export-policies', SRR['empty_records']),
+        ('GET', 'protocols/nfs/export-policies', SRR['empty_records']),
+        ('POST', 'protocols/nfs/export-policies', SRR['empty_good']),
+        ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
+        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['create_export_policy_rules']),
+        ('PATCH', 'protocols/nfs/export-policies/123/rules/1', SRR['empty_records'])
+    ])
+
+    module_args = {
+        'rule_index': 10,
+        'use_rest': 'always',
+        'google_netapp_unified_pool': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    assert create_and_apply(policy_rule, GCNV_DEFAULT_ARGS, module_args)['changed']

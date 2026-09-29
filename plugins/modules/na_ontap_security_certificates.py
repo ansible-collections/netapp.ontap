@@ -193,10 +193,33 @@ options:
               'keyagreement', 'keycertsign', 'crlsign', 'encipheronly', 'decipheronly', 'critical']
     version_added: '23.5.0'
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - supports check mode.
   - only supports REST. Requires ONTAP 9.6 or later, ONTAP 9.8 or later is recommended.
   - Module is not idempotent when generating CSR.
+  - Supports AWS Lambda proxy functionality. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -408,27 +431,41 @@ class NetAppOntapSecurityCertificates:
                                      choices=['serverauth', 'clientauth', 'timestamping', 'dvcs', 'ocspsigning', 'codesigning',
                                               'emailprotection', 'anyextendedkeyusage', 'critical']),
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
+            ]
         )
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if self.parameters.get('name') is None and (self.parameters.get('common_name') is None or self.parameters.get('type') is None):
-            error = "Error: 'name' or ('common_name' and 'type') are required parameters."
-            self.module.fail_json(msg=error)
         # ONTAP 9.6 and 9.7 do not support name.  We'll change this to True if we detect an issue.
         self.ignore_name_param = False
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
         # API should be used for ONTAP 9.6 or higher
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_security_certificates', 9, 6)
-
         if not self.use_rest:
             self.module.fail_json(msg="This module require REST with ONTAP 9.6 or higher")
+
+        if self.parameters.get('name') is None and (self.parameters.get('common_name') is None or self.parameters.get('type') is None):
+            error = "Error: 'name' or ('common_name' and 'type') are required parameters."
+            self.module.fail_json(msg=error)
+
+        invalid_create_with_name = (
+            self.parameters.get('state') == 'present'
+            and self.parameters.get('name') is not None
+            and self.parameters.get('common_name') is not None
+            and self.parameters.get('type') is None
+            and not self.parameters.get('generate_csr')
+            and self.parameters.get('signing_request') is None
+        )
+        if invalid_create_with_name:
+            self.module.fail_json(msg="Error: 'type' is required when 'name' is used for create/install.")
         if self.parameters.get('generate_csr') and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('generate_csr', '9.8', use_rest=self.use_rest))
 
@@ -453,6 +490,8 @@ class NetAppOntapSecurityCertificates:
             data = {'fields': 'uuid',
                     key: self.parameters[key],
                     }
+            if key == 'name' and self.parameters.get('type') is not None:
+                data['type'] = self.parameters['type']
             if self.parameters.get('svm') is not None:
                 data['svm.name'] = self.parameters['svm']
             else:
@@ -522,7 +561,7 @@ class NetAppOntapSecurityCertificates:
             if self.parameters.get('svm') is None and error.get('target') == 'uuid':
                 error['target'] = 'cluster'
             if error.get('message') == 'duplicate entry':
-                error['message'] += '.  Same certificate may already exist under a different name.'
+                error['message'] += '. A certificate with the same name but a different type may already exist.'
             self.module.fail_json(msg="Error creating or installing certificate: %s" % error)
         return message
 

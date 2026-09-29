@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP Ansible module na_ontap_active_directory '''
@@ -20,8 +20,8 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_active_directory 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 # not available on 2.6 anymore
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 def default_args(use_rest='never'):
@@ -70,6 +70,7 @@ SRR = rest_responses({
 })
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_success_create():
     ''' test get'''
     args = dict(default_args())
@@ -89,6 +90,7 @@ def test_success_create():
     assert exc.value.args[0]['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_fail_create_zapi_error():
     ''' test get'''
     args = dict(default_args())
@@ -107,6 +109,7 @@ def test_fail_create_zapi_error():
     assert msg == exc.value.args[0]['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_success_delete():
     ''' test get'''
     args = dict(default_args())
@@ -125,6 +128,7 @@ def test_success_delete():
     assert exc.value.args[0]['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_fail_delete_zapi_error():
     ''' test get'''
     args = dict(default_args())
@@ -144,6 +148,7 @@ def test_fail_delete_zapi_error():
     assert msg == exc.value.args[0]['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_success_modify():
     ''' test get'''
     args = dict(default_args())
@@ -163,6 +168,7 @@ def test_success_modify():
     assert exc.value.args[0]['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_fail_modify_zapi_error():
     ''' test get'''
     args = dict(default_args())
@@ -182,6 +188,7 @@ def test_fail_modify_zapi_error():
     assert msg == exc.value.args[0]['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_fail_modify_on_ou():
     ''' test get'''
     args = dict(default_args())
@@ -200,6 +207,7 @@ def test_fail_modify_on_ou():
     assert msg == exc.value.args[0]['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_fail_on_get_zapi_error():
     ''' test get'''
     args = dict(default_args())
@@ -216,6 +224,7 @@ def test_fail_on_get_zapi_error():
     assert msg == exc.value.args[0]['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
 def test_fail_netapp_lib_error(mock_has_netapp_lib):
     ''' test get'''

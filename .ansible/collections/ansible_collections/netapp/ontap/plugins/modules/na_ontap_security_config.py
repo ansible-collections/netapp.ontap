@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2025, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -54,6 +54,18 @@ options:
     type: list
     elements: str
     version_added: 22.4.0
+
+  software_data_encryption:
+    description:
+      - Cluster-wide software data encryption related information.
+      - Only supported with REST.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      disabled_by_default:
+        description:
+          - Indicates whether or not default software data at rest encryption is disabled on the cluster.
+        type: bool
 """
 
 EXAMPLES = """
@@ -90,7 +102,7 @@ RETURN = """
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
@@ -110,7 +122,10 @@ class NetAppOntapSecurityConfig:
             is_fips_enabled=dict(required=False, type='bool'),
             supported_ciphers=dict(required=False, type='str'),
             supported_protocols=dict(required=False, type='list', elements='str', choices=['TLSv1.3', 'TLSv1.2', 'TLSv1.1', 'TLSv1']),
-            supported_cipher_suites=dict(required=False, type='list', elements='str')
+            supported_cipher_suites=dict(required=False, type='list', elements='str'),
+            software_data_encryption=dict(type='dict', options=dict(
+                disabled_by_default=dict(required=False, type='bool')
+            )),
         ))
 
         self.module = AnsibleModule(
@@ -130,8 +145,9 @@ class NetAppOntapSecurityConfig:
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
 
         if not self.use_rest:
-            if self.parameters.get('supported_cipher_suites'):
-                self.module.fail_json(msg="Error: The option supported_cipher_suites is supported only with REST.")
+            for param in ('supported_cipher_suites', 'software_data_encryption'):
+                if self.parameters.get(param):
+                    self.module.fail_json(msg="Error: Option %s is supported only with REST." % (param))
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg='The python NetApp-Lib module is required')
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -235,7 +251,7 @@ class NetAppOntapSecurityConfig:
         """
             Get the current security configuration
         """
-        fields = 'fips.enabled,'
+        fields = 'fips.enabled,software_data_encryption,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
             fields += 'tls.cipher_suites,tls.protocol_versions'
         record, error = rest_generic.get_one_record(self.rest_api, '/security', None, fields)
@@ -245,7 +261,10 @@ class NetAppOntapSecurityConfig:
             return {
                 'is_fips_enabled': self.na_helper.safe_get(record, ['fips', 'enabled']),
                 'supported_cipher_suites': self.na_helper.safe_get(record, ['tls', 'cipher_suites']),
-                'supported_protocols': self.na_helper.safe_get(record, ['tls', 'protocol_versions'])
+                'supported_protocols': self.na_helper.safe_get(record, ['tls', 'protocol_versions']),
+                'software_data_encryption': {
+                    'disabled_by_default': self.na_helper.safe_get(record, ['software_data_encryption', 'disabled_by_default'])
+                }
             }
         return record
 
@@ -260,6 +279,8 @@ class NetAppOntapSecurityConfig:
             body['tls.cipher_suites'] = modify['supported_cipher_suites']
         if 'supported_protocols' in modify:
             body['tls.protocol_versions'] = modify['supported_protocols']
+        if 'software_data_encryption' in modify:
+            body['software_data_encryption.disabled_by_default'] = modify['software_data_encryption']['disabled_by_default']
         record, error = rest_generic.patch_async(self.rest_api, '/security', None, body)
         if error:
             self.module.fail_json(msg="Error on modifying security config: %s" % error)

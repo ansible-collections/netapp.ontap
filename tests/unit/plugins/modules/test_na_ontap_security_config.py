@@ -1,9 +1,10 @@
-# (c) 2021-2023, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 ''' unit tests ONTAP Ansible module: na_ontap_security_config '''
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
+import sys
 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
@@ -16,9 +17,12 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_security_config \
     import NetAppOntapSecurityConfig as security_config_module, main as my_main  # module under test
 
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip(
+        'Skipping Unit Tests on 2.6 as requests is not available')
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -29,6 +33,9 @@ SRR = rest_responses({
             "tls": {
                 "protocol_versions": ['TLSv1.3', 'TLSv1.2', 'TLSv1.1'],
                 "cipher_suites": ['TLS_RSA_WITH_AES_128_CCM_8']
+            },
+            "software_data_encryption": {
+                "disabled_by_default": False
             }
         }], "num_records": 1
     }, None),
@@ -73,6 +80,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_get_security_config_info():
     register_responses([
         ('ZAPI', 'security-config-get', ZRR['error'])
@@ -87,6 +95,7 @@ def test_error_get_security_config_info():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_security_config_info():
     register_responses([
         ('security-config-get', ZRR['security_config_info'])
@@ -96,6 +105,7 @@ def test_get_security_config_info():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_security_config_fips():
     register_responses([
         ('ZAPI', 'security-config-get', ZRR['security_config_info']),
@@ -108,6 +118,7 @@ def test_modify_security_config_fips():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_modify_security_config_fips():
     register_responses([
         ('ZAPI', 'security-config-get', ZRR['security_config_info']),
@@ -121,6 +132,7 @@ def test_error_modify_security_config_fips():
     assert "Error modifying security config for interface" in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_security_config():
     register_responses([
     ])
@@ -132,6 +144,7 @@ def test_error_security_config():
     assert 'If fips is enabled then TLSv1 is not a supported protocol' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_security_config_supported_ciphers():
     register_responses([
     ])
@@ -236,7 +249,10 @@ def test_rest_error_modify_security_config():
     module_args = {
         "is_fips_enabled": True,
         "supported_protocols": ['TLSv1.3', 'TLSv1.2'],
-        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
+        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM',
+        "software_data_encryption": {
+            "disabled_by_default": True
+        }
     }
     error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
     assert "Error on modifying security config: calling: /security: got Expected error." in error

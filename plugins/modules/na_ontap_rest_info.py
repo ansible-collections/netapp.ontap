@@ -36,6 +36,7 @@ notes:
   - I(subsys_health_info) there is not REST equivalent.
   - I(volume_move_target_aggr_info) there is not REST equivalent.
   - Supports AWS Lambda proxy functionality. See README for example usage.
+  - Supports GCNV ONTAP-mode REST passthrough when C(gcnv) is provided. See README for example usage.
 
 options:
   state:
@@ -145,6 +146,7 @@ options:
       - protocols/nfs/kerberos/interfaces
       - protocols/nfs/kerberos/realms or kerberos_realm_info
       - protocols/nfs/services or vserver_nfs_info or nfs_info
+      - protocols/nfs/tls/interfaces B(Requires ONTAP 9.15.1 or later)
       - protocols/nvme/interfaces or nvme_interface_info
       - protocols/nvme/services or nvme_info
       - protocols/nvme/subsystems or nvme_subsystem_info
@@ -167,6 +169,8 @@ options:
       - protocols/vscan/server-status or vscan_connection_status_all_info
       - security
       - security/accounts or security_login_info or security_login_account_info
+      - security/anti-ransomware
+      - security/anti-ransomware/auto-enable
       - security/anti-ransomware/suspects
       - security/audit
       - security/audit/destinations or cluster_log_forwarding_info
@@ -175,11 +179,19 @@ options:
       - security/authentication/cluster/ldap
       - security/authentication/cluster/nis
       - security/authentication/cluster/saml-sp
+      - security/authentication/cluster/saml-sp/default-metadata
       - security/authentication/publickeys
       - security/aws-kms
+      - security/barbican-kms
       - security/azure-key-vaults
       - security/certificates
+      - security/cluster-network
+      - security/cluster-network/certificates
+      - security/external-role-mappings
       - security/gcp-kms
+      - security/group/role-mappings
+      - security/groups
+      - security/ha-network
       - security/ipsec
       - security/ipsec/ca-certificates
       - security/ipsec/policies
@@ -187,6 +199,8 @@ options:
       - security/key-manager-configs
       - security/key-managers
       - security/key-stores
+      - security/jit-privilege-users
+      - security/jit-privileges
       - security/login/messages
       - security/multi-admin-verify
       - security/multi-admin-verify/approval-groups
@@ -195,6 +209,9 @@ options:
       - security/roles or security_login_rest_role_info
       - security/ssh
       - security/ssh/svms
+      - security/webauthn/credentials
+      - security/webauthn/global-settings
+      - security/webauthn/supported-algorithms
       - snapmirror/policies or snapmirror_policy_info
       - snapmirror/relationships or snapmirror_info
       - storage/aggregates or aggregate_info
@@ -341,6 +358,48 @@ options:
         description:
           - The name of the AWS profile to use for authentication.
         type: str
+  gcnv:
+    description:
+      - Configuration parameters for Google Cloud NetApp Volumes (GCNV) ONTAP-mode passthrough.
+      - These options are only supported with REST.
+      - When set, C(hostname), C(username), and C(password) are not required.
+      - Option alias C(google_netapp_unified_pool) is supported.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      project_id:
+        description:
+          - Google Cloud project ID.
+        type: str
+        required: true
+      location:
+        description:
+          - Google Cloud location, for example C(us-central1-a).
+        type: str
+        required: true
+      storage_pool:
+        description:
+          - GCNV storage pool name.
+        type: str
+        required: true
+      custom_base_url:
+        description:
+          - GCNV API base URL including version.
+          - Defaults to C(https://netapp.googleapis.com/v1).
+        type: str
+        default: 'https://netapp.googleapis.com/v1'
+      access_token:
+        description:
+          - OAuth 2.0 bearer token (JWT) used for authorization.
+          - Passed as a Bearer token in the HTTP Authorization header.
+        type: str
+        required: true
+  hostname:
+    description:
+      - The hostname or IP address of the ONTAP instance.
+      - Not required when C(gcnv) is configured.
+    type: str
+    required: false
 '''
 
 EXAMPLES = '''
@@ -469,7 +528,7 @@ EXAMPLES = '''
 
 import codecs
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_text, to_bytes
+from ansible.module_utils.common.text.converters import to_text, to_bytes
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
@@ -485,6 +544,7 @@ class NetAppONTAPGatherInfo(object):
         check parameters and ensure request module is installed
         """
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
+        self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
             state=dict(type='str', required=False),
             gather_subset=dict(default=['demo'], type='list', elements='str', required=False),
@@ -500,6 +560,10 @@ class NetAppONTAPGatherInfo(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            mutually_exclusive=[
+                ('use_lambda', 'gcnv'),
+                ('gcnv', 'hostname')
+            ],
             required_if=[
                 ('use_lambda', True, ['lambda_config']),
             ],
@@ -941,6 +1005,7 @@ class NetAppONTAPGatherInfo(object):
             'protocols/nfs/kerberos/interfaces': {},
             'protocols/nfs/kerberos/realms': {},
             'protocols/nfs/services': {},
+            'protocols/nfs/tls/interfaces': {'version': (9, 15, 1)},
             'protocols/nvme/interfaces': {},
             'protocols/nvme/services': {},
             'protocols/nvme/subsystem-controllers': {},
@@ -960,6 +1025,8 @@ class NetAppONTAPGatherInfo(object):
             'protocols/vscan': {},
             'security': {'version': (9, 7)},
             'security/accounts': {},
+            'security/anti-ransomware': {'version': (9, 16, 1)},
+            'security/anti-ransomware/auto-enable': {'version': (9, 18, 1)},
             'security/anti-ransomware/suspects': {'version': (9, 10, 1)},
             'security/audit': {},
             'security/audit/destinations': {},
@@ -968,11 +1035,19 @@ class NetAppONTAPGatherInfo(object):
             'security/authentication/cluster/ldap': {},
             'security/authentication/cluster/nis': {},
             'security/authentication/cluster/saml-sp': {},
+            'security/authentication/cluster/saml-sp/default-metadata': {'version': (9, 17, 1)},
             'security/authentication/publickeys': {'version': (9, 7)},
             'security/aws-kms': {'version': (9, 12, 1)},
+            'security/barbican-kms': {'version': (9, 17, 1)},
             'security/azure-key-vaults': {'version': (9, 8)},
             'security/certificates': {},
+            'security/cluster-network': {'version': (9, 18, 1)},
+            'security/cluster-network/certificates': {'version': (9, 18, 1)},
+            'security/external-role-mappings': {'version': (9, 16, 1)},
             'security/gcp-kms': {'version': (9, 9)},
+            'security/group/role-mappings': {'version': (9, 16, 1)},
+            'security/groups': {'version': (9, 16, 1)},
+            'security/ha-network': {'version': (9, 18, 1)},
             'security/ipsec': {'version': (9, 8)},
             'security/ipsec/ca-certificates': {'version': (9, 10, 1)},
             'security/ipsec/policies': {'version': (9, 8)},
@@ -980,6 +1055,8 @@ class NetAppONTAPGatherInfo(object):
             'security/key-manager-configs': {'version': (9, 10, 1)},
             'security/key-managers': {},
             'security/key-stores': {'version': (9, 10, 1)},
+            'security/jit-privilege-users': {'version': (9, 17, 1)},
+            'security/jit-privileges': {'version': (9, 17, 1)},
             'security/login/messages': {},
             'security/multi-admin-verify': {'version': (9, 11, 1)},
             'security/multi-admin-verify/approval-groups': {'version': (9, 11, 1)},
@@ -988,6 +1065,9 @@ class NetAppONTAPGatherInfo(object):
             'security/roles': {},
             'security/ssh': {'version': (9, 7)},
             'security/ssh/svms': {'version': (9, 10, 1)},
+            'security/webauthn/credentials': {'version': (9, 16, 1)},
+            'security/webauthn/global-settings': {'version': (9, 16, 1)},
+            'security/webauthn/supported-algorithms': {'version': (9, 16, 1)},
             'snapmirror/policies': {},
             'snapmirror/relationships': {},
             'storage/aggregates': {},

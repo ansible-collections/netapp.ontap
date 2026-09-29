@@ -1,0 +1,5 @@
+---
+major_changes:
+  - na_ontap_dns - GCNV support added to the module.
+  - na_ontap_quotas - GCNV support added to the module.
+  - na_ontap_volume - GCNV support added to the module.

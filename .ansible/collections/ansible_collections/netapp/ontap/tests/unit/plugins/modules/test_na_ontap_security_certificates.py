@@ -51,7 +51,7 @@ def set_default_args():
         'hostname': 'hostname',
         'username': 'username',
         'password': 'password',
-        'name': 'name_for_certificate'
+        'name': 'name_for_certificate',
     })
 
 
@@ -74,6 +74,34 @@ def test_ensure_get_certificate_called(mock_request):
     set_module_args(set_default_args())
     my_obj = my_module()
     assert my_obj.get_certificate() is not None
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.get')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_get_certificate_name_includes_type(mock_request, mock_get):
+    mock_request.side_effect = [
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
+        SRR['end_of_sequence']
+    ]
+    mock_get.return_value = (SRR['get_uuid'][1], None)
+    data = {
+        'type': 'client_ca',
+        'common_name': 'cname'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    assert my_obj.get_certificate() is not None
+    mock_get.assert_called_with(
+        'security/certificates',
+        {
+            'fields': 'uuid',
+            'name': 'name_for_certificate',
+            'type': 'client_ca',
+            'scope': 'cluster'
+        }
+    )
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -200,7 +228,7 @@ def test_rest_negative_create_duplicate_entry(mock_request):
         my_obj.apply()
     print('EXC', exc.value.args[0]['msg'])
     for fragment in ('Error creating or installing certificate: {',
-                     "'message': 'duplicate entry.  Same certificate may already exist under a different name.'",
+                     "'message': 'duplicate entry. A certificate with the same name but a different type may already exist.'",
                      "'target': 'cluster'"):
         assert fragment in exc.value.args[0]['msg']
 
@@ -524,7 +552,12 @@ def test_rest_data_vserver_not_exist(mock_request):
     assert 'Error vserver abc does not exist or is not a data vserver.' in exc.value.args[0]['msg']
 
 
-def test_rest_negative_no_name_and_type():
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_no_name_and_type(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
+    ]
     data = {
         'common_name': 'cname',
         # 'type': 'client_ca',
@@ -536,6 +569,25 @@ def test_rest_negative_no_name_and_type():
     with pytest.raises(AnsibleFailJson) as exc:
         my_module()
     msg = "Error: 'name' or ('common_name' and 'type') are required parameters."
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_name_without_type_for_create_install(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
+    ]
+    data = {
+        'name': 'name_for_certificate',
+        'common_name': 'cname',
+        'vserver': 'abc',
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module()
+    msg = "Error: 'type' is required when 'name' is used for create/install."
     assert msg == exc.value.args[0]['msg']
 
 

@@ -149,7 +149,7 @@ validation_reports_after_updates:
 import time
 import traceback
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule

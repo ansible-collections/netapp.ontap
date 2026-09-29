@@ -86,11 +86,39 @@ def set_default_args(use_rest='auto'):
     })
 
 
+GCNV_DEFAULT_ARGS = {
+    'google_netapp_unified_pool': {
+        'project_id': 'project',
+        'location': 'us-central1-a',
+        'storage_pool': 'pool1',
+        'access_token': 'token'
+    },
+    'use_rest': 'always',
+    'api': 'api'
+}
+
+
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_run_default_get(mock_request, patch_ansible):
     ''' if no method is given, GET is the default '''
     args = dict(set_default_args())
     set_module_args(args)
+    mock_request.side_effect = [
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is False
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 1
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_run_default_get_gcnv(mock_request, patch_ansible):
+    ''' if no method is given, GET is the default '''
+    set_module_args(GCNV_DEFAULT_ARGS)
     mock_request.side_effect = [
         SRR['empty_good'],
         SRR['end_of_sequence']

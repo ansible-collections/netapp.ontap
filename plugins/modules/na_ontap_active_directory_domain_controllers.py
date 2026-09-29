@@ -48,9 +48,32 @@ options:
       - Skip the validation of the specified preferred DC configuration.
     type: bool
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - This module requires ONTAP 9.12.1 or later for REST API.
   - CLI support is available for other lower ONTAP versions.
+  - Supports AWS Lambda proxy functionality. See the README file for examples.
 '''
 EXAMPLES = """
 - name: Create active directory preferred domain controllers
@@ -103,10 +126,11 @@ class NetAppOntapActiveDirectoryDC:
             server_ip=dict(required=True, type='str'),
             skip_config_validation=dict(required=False, type='bool'),
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            required_if=[('use_lambda', True, ('lambda_config',))],
         )
 
         # set up variables

@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_snapshot_policy'''
@@ -12,7 +12,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, create_module
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapshot_policy \
     import NetAppOntapSnapshotPolicy as my_module

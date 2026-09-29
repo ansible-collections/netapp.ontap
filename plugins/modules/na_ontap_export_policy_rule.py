@@ -144,6 +144,13 @@ options:
     type: bool
     version_added: 22.0.0
 
+  allow_nfs_tls_only:
+    description:
+      - Specifies whether to allow NFS access only over TLS connections.
+      - With REST, supported from ONTAP 9.19.1 version.
+    type: bool
+    version_added: 24.0.0
+
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -166,8 +173,52 @@ options:
           - The name of the AWS profile to use for authentication.
         type: str
 
+  gcnv:
+    description:
+      - Configuration parameters for Google Cloud NetApp Volumes (GCNV) ONTAP-mode passthrough.
+      - These options are only supported with REST.
+      - When set, C(hostname), C(username), and C(password) are not required.
+      - Option alias C(google_netapp_unified_pool) is supported.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      project_id:
+        description:
+          - Google Cloud project ID.
+        type: str
+        required: true
+      location:
+        description:
+          - Google Cloud location, for example C(us-central1-a).
+        type: str
+        required: true
+      storage_pool:
+        description:
+          - GCNV storage pool name.
+        type: str
+        required: true
+      custom_base_url:
+        description:
+          - GCNV API base URL including version.
+          - Defaults to C(https://netapp.googleapis.com/v1).
+        type: str
+        default: 'https://netapp.googleapis.com/v1'
+      access_token:
+        description:
+          - OAuth 2.0 bearer token (JWT) used for authorization.
+          - Passed as a Bearer token in the HTTP Authorization header.
+        type: str
+        required: true
+  hostname:
+    description:
+      - The hostname or IP address of the ONTAP instance.
+      - Not required when C(gcnv) is configured.
+    type: str
+    required: false
+
 notes:
   - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
+  - Supports GCNV ONTAP-mode REST passthrough when C(gcnv) is provided. See the README file for examples.
 '''
 
 EXAMPLES = """
@@ -241,7 +292,7 @@ RETURN = """
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
@@ -252,6 +303,7 @@ class NetAppontapExportRule:
 
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str', aliases=['policy_name']),
@@ -278,12 +330,16 @@ class NetAppontapExportRule:
             force_delete_on_first_match=dict(required=False, type='bool', default=False),
             chown_mode=dict(required=False, type='str', choices=['restricted', 'unrestricted']),
             allow_device_creation=dict(required=False, type='bool'),
+            allow_nfs_tls_only=dict(required=False, type='bool'),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
             required_if=[('use_lambda', True, ('lambda_config',))],
+            mutually_exclusive=[
+                ['use_lambda', 'gcnv'], ['gcnv', 'hostname']
+            ],
         )
 
         self.na_helper = NetAppModule()
@@ -293,7 +349,8 @@ class NetAppontapExportRule:
 
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         partially_supported_rest_properties = [['ntfs_unix_security', (9, 9, 1)], ['allow_suid', (9, 9, 1)],
-                                               ['allow_device_creation', (9, 9, 1)], ['chown_mode', (9, 9, 1)]]
+                                               ['allow_device_creation', (9, 9, 1)], ['chown_mode', (9, 9, 1)],
+                                               ['allow_nfs_tls_only', (9, 19, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
         if not self.use_rest:
             if self.parameters.get('use_lambda'):
@@ -591,7 +648,7 @@ class NetAppontapExportRule:
         records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
         if error:
             # If no rule matches the query, return None
-            if "entry doesn't exist" in error:
+            if "entry doesn't exist" in error or "entry doesn\\'t exist" in error:
                 return None
             self.module.fail_json(msg="Error on fetching export policy rules: %s" % error)
         return self.match_export_policy_rule_exactly(records, query, is_rest=True)
@@ -618,13 +675,15 @@ class NetAppontapExportRule:
         query = {'fields': 'anonymous_user,clients,index,protocols,ro_rule,rw_rule,superuser'}
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
             query['fields'] += ',ntfs_unix_security,allow_suid,chown_mode,allow_device_creation'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 19, 1):
+            query['fields'] += ',allow_nfs_tls_only'
         if rule_index is None:
             return self.get_export_policy_rule_exact_match(query)
         api = 'protocols/nfs/export-policies/%s/rules/%s' % (self.policy_id, rule_index)
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
             # If rule index passed in doesn't exist, return None
-            if "entry doesn't exist" in error:
+            if "entry doesn't exist" in error or "entry doesn\\'t exist" in error:
                 return None
             self.module.fail_json(msg="Error on fetching export policy rule: %s" % error)
         return self.filter_get_results(record) if record else None
@@ -636,6 +695,7 @@ class NetAppontapExportRule:
         record['super_user_security'] = record.pop('superuser')
         record['client_match'] = [each['match'] for each in record['clients']]
         record.pop('clients')
+        record['allow_nfs_tls_only'] = record.pop('allow_nfs_tls_only', None)
         return record
 
     def create_export_policy_rest(self):
@@ -713,6 +773,8 @@ class NetAppontapExportRule:
             result['chown_mode'] = self.parameters['chown_mode']
         if params.get('allow_device_creation') is not None:
             result['allow_device_creation'] = self.parameters['allow_device_creation']
+        if params.get('allow_nfs_tls_only') is not None:
+            result['allow_nfs_tls_only'] = self.parameters['allow_nfs_tls_only']
         return result
 
     def modify_export_policy_rule_rest(self, params, rule_index, rename=False):

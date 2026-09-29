@@ -925,3 +925,40 @@ def test_if_all_methods_catch_exception_rest():
     assert 'Error setting quota-on for ansible' in expect_and_capture_ansible_exception(my_obj.on_or_off_quota_rest, 'fail', 'quota-on')['msg']
     error = "Error: Qtree cannot be specified for a tree type rule"
     assert error in create_module(my_module, ARGS_REST, {'qtree': 'qtree1', 'type': 'tree'}, fail=True)['msg']
+
+
+# GCNV related tests
+GCNV_DEFAULT_ARGS = {
+    'state': 'present',
+    'use_rest': 'always',
+    'volume': 'ansible',
+    'vserver': 'ansible',
+    'quota_target': '/vol/ansible',
+    'type': 'user',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': '10.10.0.0',
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {'project_id': 'proj', 'location': 'us-central1-a', 'storage_pool': 'pool1', 'access_token': 'token'}
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {'project_id': 'proj', 'location': 'us-central1-a', 'storage_pool': 'pool1', 'access_token': 'token'}
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']

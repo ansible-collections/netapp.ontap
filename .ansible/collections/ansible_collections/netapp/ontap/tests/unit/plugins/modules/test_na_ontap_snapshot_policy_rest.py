@@ -1,4 +1,4 @@
-# (c) 2024, NetApp, Inc
+# (c) 2024-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_snapshot_policy """
@@ -544,3 +544,67 @@ def test_invalid_schedule_count_rest():
         'schedule and can have up to a maximum of 5 schedules, with a count ' \
         'representing the maximum number of Snapshot copies for each schedule'
     assert msg in expect_and_capture_ansible_exception(my_module_object.validate_parameters, 'fail')['msg']
+
+
+GCNV_DEFAULT_ARGS = {
+    'state': 'present',
+    'name': 'ansible',
+    'enabled': True,
+    'count': [1],
+    'schedule': ['hourly'],
+    'use_rest': 'always',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': "10.10.0.0",
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_success_with_google_netapp_unified_pool_alias():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/snapshot-policies', SRR['empty_records']),
+        ('POST', 'storage/snapshot-policies', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'google_netapp_unified_pool': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    assert create_and_apply(my_module, GCNV_DEFAULT_ARGS, module_args)['changed']

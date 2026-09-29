@@ -1,4 +1,4 @@
-# (c) 2020-2025, NetApp, Inc
+# (c) 2020-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' Unit Tests NetApp ONTAP REST APIs Ansible module: na_ontap_rest_info '''
@@ -371,6 +371,7 @@ ALL_SUBSETS = ['application/applications',
                'protocols/nfs/kerberos/interfaces',
                'protocols/nfs/kerberos/realms',
                'protocols/nfs/services',
+               'protocols/nfs/tls/interfaces',
                'protocols/nvme/interfaces',
                'protocols/nvme/services',
                'protocols/nvme/subsystems',
@@ -390,6 +391,8 @@ ALL_SUBSETS = ['application/applications',
                'protocols/vscan/server-status',
                'security',
                'security/accounts',
+               'security/anti-ransomware',
+               'security/anti-ransomware/auto-enable',
                'security/anti-ransomware/suspects',
                'security/audit',
                'security/audit/destinations',
@@ -398,11 +401,19 @@ ALL_SUBSETS = ['application/applications',
                'security/authentication/cluster/ldap',
                'security/authentication/cluster/nis',
                'security/authentication/cluster/saml-sp',
+               'security/authentication/cluster/saml-sp/default-metadata',
                'security/authentication/publickeys',
                'security/aws-kms',
+               'security/barbican-kms',
                'security/azure-key-vaults',
                'security/certificates',
+               'security/cluster-network',
+               'security/cluster-network/certificates',
+               'security/external-role-mappings',
                'security/gcp-kms',
+               'security/group/role-mappings',
+               'security/groups',
+               'security/ha-network',
                'security/ipsec',
                'security/ipsec/ca-certificates',
                'security/ipsec/policies',
@@ -410,6 +421,8 @@ ALL_SUBSETS = ['application/applications',
                'security/key-manager-configs',
                'security/key-managers',
                'security/key-stores',
+               'security/jit-privilege-users',
+               'security/jit-privileges',
                'security/login/messages',
                'security/multi-admin-verify',
                'security/multi-admin-verify/approval-groups',
@@ -418,6 +431,9 @@ ALL_SUBSETS = ['application/applications',
                'security/roles',
                'security/ssh',
                'security/ssh/svms',
+               'security/webauthn/credentials',
+               'security/webauthn/global-settings',
+               'security/webauthn/supported-algorithms',
                'snapmirror/policies',
                'snapmirror/relationships',
                'storage/aggregates',
@@ -476,13 +492,14 @@ ALL_SUBSETS = ['application/applications',
 # Super Important, Metrocluster doesn't call get_subset_info and has 3 api calls instead of 1!!!!
 # The metrocluster calls need to be in the correct place. The Module return the keys in a sorted list.
 ALL_RESPONSES = [
-    ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ('GET', 'cluster', SRR['is_rest_9_18_1']),
     ('GET', 'application/applications', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', 'application/templates', SRR['get_subset_info']),
     ('GET', 'cloud/targets', SRR['get_subset_info']),
     ('GET', 'cluster', SRR['get_subset_info']),
     ('GET', 'cluster/chassis', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', 'cluster/jobs', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
@@ -500,9 +517,45 @@ ALL_RESPONSES = [
     ('GET', '*', SRR['get_subset_info']),
     ('GET', 'cluster/metrocluster/nodes', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
     ('GET', 'cluster/nodes', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', 'cluster/ntp/servers', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
@@ -788,6 +841,21 @@ def set_args_get_all_records_for_volume_info_to_check_next_api_call_functionalit
     })
 
 
+def set_args_run_ontap_gather_facts_for_volume_info_gcnv():
+    return dict({
+        'google_netapp_unified_pool': {
+            'project_id': 'project',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        },
+        'https': True,
+        'validate_certs': False,
+        'max_records': 1024,
+        'gather_subset': ['volume_info']
+    })
+
+
 def test_run_ontap_version_check_for_9_6_pass():
     register_responses([
         ('GET', 'cluster', SRR['validate_ontap_version_pass']),
@@ -865,6 +933,17 @@ def test_run_ontap_gather_facts_for_volume_info_pass():
         ('GET', 'storage/volumes', SRR['get_subset_info']),
     ])
     assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_volume_info())['ontap_info']) == set(gather_subset)
+
+
+def test_run_ontap_gather_facts_for_nfs_tls_interfaces_pass():
+    gather_subset = ['protocols/nfs/tls/interfaces']
+    args = set_default_args()
+    args['gather_subset'] = gather_subset
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_15_1']),
+        ('GET', 'protocols/nfs/tls/interfaces', SRR['get_subset_info']),
+    ])
+    assert set(create_and_apply(ontap_rest_info_module, args)['ontap_info']) == set(gather_subset)
 
 
 def test_run_ontap_gather_facts_for_all_subsets_pass():
@@ -1334,3 +1413,12 @@ def test_private_cli_fields():
     assert my_obj.private_cli_fields('support/autosupport/check') == 'node,corrective-action,status,error-detail,check-type,check-category'
     my_obj.parameters['fields'] = ['f1', 'f2']
     assert my_obj.private_cli_fields('private/cli/vserver/security/file-directory') == 'f1,f2'
+
+
+def test_run_ontap_gather_facts_for_volume_info_pass_gcnv():
+    gather_subset = ['storage/volumes']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['get_subset_info']),
+    ])
+    assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_volume_info_gcnv())['ontap_info']) == set(gather_subset)

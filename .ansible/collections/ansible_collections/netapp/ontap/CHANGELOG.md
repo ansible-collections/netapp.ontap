@@ -1,5 +1,46 @@
 # Release Notes
 
+## 24.0.0
+
+### Major Changes
+  - na_ontap_snapshot - GCNV support added to the module.
+  - na_ontap_snapshot_policy - GCNV support added to the module.
+  - na_ontap_qtree - GCNV support added to the module.
+  - na_ontap_export_policy - GCNV support added to the module.
+  - na_ontap_rest_cli - GCNV support added to the module.
+  - na_ontap_rest_info - GCNV support added to the module.
+  - na_ontap_restit - GCNV support added to the module.
+  - na_ontap_license - GCNV support added to the module.
+  - na_ontap_dns - GCNV support added to the module.
+  - na_ontap_quotas - GCNV support added to the module.
+  - na_ontap_volume - GCNV support added to the module.
+  - na_ontap_security_certificates - AWS Lambda support added to the module.
+  - na_ontap_security_ipsec_config - AWS Lambda support added to the module.
+  - na_ontap_security_ipsec_policy - AWS Lambda support added to the module.
+  - na_ontap_nvme - AWS Lambda support added to the module.
+  - na_ontap_nvme_subsystem - AWS Lambda support added to the module.
+  - na_ontap_active_directory_domain_controllers - AWS Lambda support added to the module.
+  - na_ontap_active_directory - AWS Lambda support added to the module.
+  - na_ontap_ems_filter - GCNV support added to the module.
+  - na_ontap_export_policy_rule - GCNV support added to the module.
+  - na_ontap_ldap_client - GCNV support added to the module.
+
+### Minor Changes
+  - na_ontap_export_policy_rule - New REST only option `allow_nfs_tls_only`, requires ONTAP 9.19.1 or later.
+  - na_ontap_rest_info - Support added for `protocols/nfs/tls/interfaces`.
+  - na_ontap_security_config - New REST only option `software_data_encryption`.
+  - na_ontap_cifs_server - Added new REST only option `advertised_kdc_encryptions`, requires ONTAP 9.13.1 or later.
+  - na_ontap_svm - New REST only options `is_space_reporting_logical`, `is_space_enforcement_logical`, requires ONTAP 9.11.1 or later.
+  - na_ontap_snapmirror - updated example for initializing a snapmirror relationship.
+  - na_ontap_log_forward - Added rest only option `message_format`, requires ONTAP 9.13.1 or later.
+  - na_ontap_rest_info - Support added for ``security`` endpoints.
+  - Replaced deprecated imports across collection.
+
+### Bug Fixes
+  - na_ontap_snapmirror - Fixed issue with intermittent initialization failure post creation.
+  - na_ontap_iscsi_security - Fixed issue with querying iscsi security settings for a given initiator based on svm.
+  - na_ontap_security_certificates - Fixed issue with creating or installing certificates of same name with different type.
+
 ## 23.6.0
 
 ### New Modules

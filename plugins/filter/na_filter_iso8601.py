@@ -10,7 +10,7 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 from ansible.errors import AnsibleFilterError
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 
 IMPORT_ERROR = None
 try:

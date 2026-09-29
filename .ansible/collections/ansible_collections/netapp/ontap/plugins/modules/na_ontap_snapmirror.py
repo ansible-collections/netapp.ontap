@@ -398,7 +398,7 @@ EXAMPLES = """
     schedule: hourly
     policy: MirrorAllSnapshots
     max_transfer_rate: 1000
-    initialize: false
+    initialize: true
     wait_for_completion: true
     time_out: 90
     hostname: "{{ destination_cluster_hostname }}"
@@ -559,7 +559,7 @@ import re
 import time
 import traceback
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_elementsw_module import NaElementSWModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
@@ -1112,8 +1112,17 @@ class NetAppONTAPSnapmirror(object):
         if current and current['status'] == 'transferring' or self.parameters.get('current_transfer_status') == 'transferring':
             # Operation already in progress, let's wait for it to end
             current = self.wait_for_idle_status()
-        if not current:
+        retry = 3
+        while retry > 0 and current is None:
             current = self.snapmirror_get()
+            if current is not None:
+                break
+            time.sleep(10)
+            retry -= 1
+
+        if current is None:
+            self.module.fail_json(msg='Error initializing SnapMirror: unable to get current relationship details after 3 retries.')
+
         if self.use_rest:
             if current['mirror_state'] == 'uninitialized' and current['status'] != 'transferring':
                 state = 'in_sync' if self.policy_type == 'sync' else 'snapmirrored'

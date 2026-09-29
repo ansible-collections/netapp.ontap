@@ -1,0 +1,3 @@
+---
+major_changes:
+  - na_ontap_license - GCNV support added to the module.

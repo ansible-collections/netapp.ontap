@@ -83,7 +83,8 @@ SRR = rest_responses({
                         "session_security": "none",
                         "try_ldap_channel_binding": True,
                         "use_ldaps": False,
-                        "use_start_tls": False
+                        "use_start_tls": False,
+                        "advertised_kdc_encryptions": ["des", "rc4", "aes_128"]
                     },
                     "options": {
                         "multichannel": True
@@ -741,6 +742,35 @@ def test_rest_successful_security_options_modify():
         "use_ldaps": True
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_successful_security_options_modify():
+    '''Test successful rest security options modify'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        "advertised_kdc_encryptions": ["des", "rc4", "aes_128", "aes_256"],
+        "admin_user_name": "test_user",
+        "admin_password": "pwd"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_error_security_options_modify():
+    '''Test Error rest security options modify'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+    ])
+    module_args = {
+        "advertised_kdc_encryptions": ["des", "rc4", "aes_128", "aes_256"]
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    msg = 'Error: admin_user_name and admin_password are required when modifying advertised_kdc_encryptions.'
+    assert msg in error
 
 
 def test_rest_successful_service_options_modify():

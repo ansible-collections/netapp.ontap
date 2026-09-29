@@ -1,0 +1,5 @@
+---
+major_changes:
+  - na_ontap_ems_filter - GCNV support added to the module.
+  - na_ontap_export_policy_rule - GCNV support added to the module.
+  - na_ontap_ldap_client - GCNV support added to the module.

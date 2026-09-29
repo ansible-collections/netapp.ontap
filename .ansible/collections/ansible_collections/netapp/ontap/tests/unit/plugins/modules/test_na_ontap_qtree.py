@@ -86,8 +86,8 @@ SRR = rest_responses({
 @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
-    # with python 2.6, dictionaries are not ordered
-    fragments = ["missing required arguments:", "hostname", "name", "vserver", "flexvol_name"]
+    # hostname is now optional (GCNV support); only truly required args are checked
+    fragments = ["missing required arguments:", "name", "vserver", "flexvol_name"]
     error = create_module(qtree_module, {}, fail=True)['msg']
     for fragment in fragments:
         assert fragment in error
@@ -503,3 +503,66 @@ def test_delete_qtree_still_running_warning_with_wait():
     assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
     print_warnings()
     assert_warning_was_raised("Qtree deletion is still in progress after 180 seconds.")
+
+
+GCNV_DEFAULT_ARGS = {
+    'state': 'present',
+    'name': 'ansible',
+    'vserver': 'ansible',
+    'flexvol_name': 'ansible',
+    'use_rest': 'always',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(qtree_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': None,
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(qtree_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(qtree_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_success_with_google_netapp_unified_pool_alias():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['empty_records']),
+        ('POST', 'storage/qtrees', SRR['success'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'google_netapp_unified_pool': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    assert create_and_apply(qtree_module, GCNV_DEFAULT_ARGS, module_args)['changed']

@@ -1,8 +1,12 @@
+# (c) 2019-26, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 ''' unit tests ONTAP Ansible module: na_ontap_snapmirror '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -28,6 +32,10 @@ if not HAS_SF_COMMON:
 
 # if not netapp_utils.has_netapp_lib():
 #     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip(
+        'Skipping Unit Tests on 2.6 as requests is not available')
 
 
 DEFAULT_ARGS = {

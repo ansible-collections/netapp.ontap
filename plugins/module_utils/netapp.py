@@ -42,14 +42,14 @@ import os
 import ssl
 import time
 from ansible.module_utils.basic import missing_required_lib
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 
 try:
     from ansible.module_utils.ansible_release import __version__ as ANSIBLE_VERSION
 except ImportError:
     ANSIBLE_VERSION = 'unknown'
 
-COLLECTION_VERSION = "23.6.0"
+COLLECTION_VERSION = "24.0.0"
 CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)
 IMPORT_EXCEPTION = None
 
@@ -174,7 +174,14 @@ def na_ontap_host_argument_spec():
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str', no_log=False),
         force_ontap_version=dict(required=False, type='str'),
-        use_lambda=dict(required=False, type='bool', default=False)
+        use_lambda=dict(required=False, type='bool', default=False),
+        gcnv=dict(required=False, type='dict', aliases=['google_netapp_unified_pool'], options=dict(
+            project_id=dict(required=True, type='str'),
+            location=dict(required=True, type='str'),
+            storage_pool=dict(required=True, type='str'),
+            custom_base_url=dict(required=False, type='str', default='https://netapp.googleapis.com/v1'),
+            access_token=dict(required=True, type='str', no_log=True)
+        ))
     )
 
 
@@ -193,7 +200,14 @@ def na_ontap_rest_only_spec():
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str', no_log=False),
         force_ontap_version=dict(required=False, type='str'),
-        use_lambda=dict(required=False, type='bool', default=False)
+        use_lambda=dict(required=False, type='bool', default=False),
+        gcnv=dict(required=False, type='dict', aliases=['google_netapp_unified_pool'], options=dict(
+            project_id=dict(required=True, type='str'),
+            location=dict(required=True, type='str'),
+            storage_pool=dict(required=True, type='str'),
+            custom_base_url=dict(required=False, type='str', default='https://netapp.googleapis.com/v1'),
+            access_token=dict(required=True, type='str', no_log=True)
+        ))
     )
 
 
@@ -285,9 +299,17 @@ def create_sf_connection(module, port=None, host_options=None):
         raise Exception("Unable to create SF connection: %s" % exc)
 
 
-def set_auth_method(module, username, password, cert_filepath, key_filepath):
+def set_auth_method(module, username, password, cert_filepath, key_filepath, gcnv_config=None):
     error = None
     auth_method = None
+    if gcnv_config:
+        if module.params.get('use_rest', 'always').lower() == 'never':
+            module.fail_json(msg='Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.')
+        if not gcnv_config.get('access_token'):
+            module.fail_json(msg='Error: gcnv.access_token is required when gcnv/google_netapp_unified_pool is configured.')
+        if cert_filepath is not None or key_filepath is not None:
+            module.fail_json(msg='Error: cert_filepath/key_filepath are not supported when gcnv/google_netapp_unified_pool is configured.')
+        return 'bearer_token'
     # defaults to cert authentication if both basic and client certificate authentication parameters are given
     if cert_filepath is not None:
         auth_method = 'single_cert' if key_filepath is None else 'cert_key'
@@ -401,7 +423,7 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
     if trace:
         logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
     wrap_zapi |= has_feature(module, 'always_wrap_zapi')
-    auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath)
+    auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath, host_options.get('gcnv'))
 
     if not HAS_NETAPP_LIB:
         module.fail_json(msg=netapp_lib_is_required())
@@ -683,7 +705,8 @@ class OntapRestAPI(object):
         # either username/password or a certifcate with/without a key are used for authentication
         self.username = self.host_options.get('username')
         self.password = self.host_options.get('password')
-        self.hostname = self.host_options['hostname']
+        self.hostname = self.host_options.get('hostname')
+        self.gcnv_config = self.host_options.get('gcnv')
         self.use_rest = self.host_options['use_rest'].lower()
         self.cert_filepath = self.host_options.get('cert_filepath')
         self.key_filepath = self.host_options.get('key_filepath')
@@ -691,10 +714,22 @@ class OntapRestAPI(object):
         self.timeout = timeout
         port = self.host_options['http_port']
         self.force_ontap_version = self.host_options.get('force_ontap_version')
-        if port is None:
+        if self.gcnv_config:
+            base_url = self.gcnv_config.get('custom_base_url') or 'https://netapp.googleapis.com/v1'
+            base_url = base_url.rstrip('/')
+            self.url = '%s/projects/%s/locations/%s/storagePools/%s/ontap/api/' % (
+                base_url,
+                self.gcnv_config['project_id'],
+                self.gcnv_config['location'],
+                self.gcnv_config['storage_pool']
+            )
+            self.hostname = self.hostname or 'netapp.googleapis.com'
+        elif port is None:
             self.url = 'https://%s/api/' % self.hostname
         else:
             self.url = 'https://%s:%d/api/' % (self.hostname, port)
+        if not self.gcnv_config and not self.hostname:
+            module.fail_json(msg='Error: hostname is required when gcnv is not configured.')
         self.is_rest_error = None
         self.fallback_to_zapi_reason = None
         self.ontap_version = dict(
@@ -706,7 +741,7 @@ class OntapRestAPI(object):
         )
         self.errors = []
         self.debug_logs = []
-        self.auth_method = set_auth_method(self.module, self.username, self.password, self.cert_filepath, self.key_filepath)
+        self.auth_method = set_auth_method(self.module, self.username, self.password, self.cert_filepath, self.key_filepath, self.gcnv_config)
         self.check_required_library()
         if has_feature(module, 'trace_apis'):
             logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
@@ -795,7 +830,9 @@ class OntapRestAPI(object):
             return status_code, json_dict, error_details
 
         def get_auth_args():
-            if self.auth_method == 'single_cert':
+            if self.auth_method == 'bearer_token':
+                kwargs = dict(headers={'Authorization': 'Bearer %s' % self.gcnv_config.get('access_token')})
+            elif self.auth_method == 'single_cert':
                 kwargs = dict(cert=self.cert_filepath)
             elif self.auth_method == 'cert_key':
                 kwargs = dict(cert=(self.cert_filepath, self.key_filepath))
@@ -820,8 +857,22 @@ class OntapRestAPI(object):
                 raise KeyError(self.auth_method)
             return kwargs
 
+        if self.gcnv_config and params:
+            if 'fields' in params and 'ontap_fields' not in params:
+                params['ontap_fields'] = params.pop('fields')
+            if isinstance(params.get('ontap_fields'), list):
+                params['ontap_fields'] = ','.join(params['ontap_fields'])
+
+        if self.gcnv_config and method in ('POST', 'PATCH') and isinstance(json, dict) and 'body' not in json:
+            json = {'body': json}
+
         url = self.url + api
         status_code, json_dict, error_details = self._send_request(method, url, params, json, headers, files, get_auth_args())
+
+        # GCNV ONTAP-mode pass-through wraps every response payload in {"body": <ontap_response>}.
+        # Unwrap so downstream code sees the native ONTAP shape it expects.
+        if self.gcnv_config and isinstance(json_dict, dict) and 'body' in json_dict and isinstance(json_dict['body'], dict):
+            json_dict = json_dict['body']
 
         return status_code, json_dict, error_details
 

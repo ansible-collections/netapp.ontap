@@ -56,7 +56,9 @@ svm_info = {
     "auto_enable_activity_tracking": False,
     "storage": {"limit": 0,
                 "limit_threshold_alert": 90},
-    "anti_ransomware_default_volume_state": "disabled"
+    "anti_ransomware_default_volume_state": "disabled",
+    "is_space_reporting_logical": False,
+    "is_space_enforcement_logical": False
 }
 
 svm_info_cert1 = dict(svm_info)
@@ -1329,3 +1331,22 @@ def test_rest_extended_params_modify():
     ])
     module_args = {'auto_enable_analytics': True, 'auto_enable_activity_tracking': True}
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_logical_space_options_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
+    ])
+    module_args = {'is_space_reporting_logical': True, 'is_space_enforcement_logical': True}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_logical_space_options_ontap_9_11_1():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    module_args = {'is_space_reporting_logical': True}
+    msg = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert msg == 'using is_space_reporting_logical requires ONTAP 9.11.1 or later and REST must be enabled - using REST.'

@@ -349,6 +349,20 @@ options:
     choices: ['disabled', 'dry_run']
     version_added: 23.5.0
 
+  is_space_reporting_logical:
+    description:
+      - Specifies whether logical space reporting is enabled for the SVM.
+      - Only supported with REST, requires ONTAP 9.11.1 or later.
+    type: bool
+    version_added: 24.0.0
+
+  is_space_enforcement_logical:
+    description:
+      - Specifies whether logical space enforcement is enabled for the SVM.
+      - Only supported with REST, requires ONTAP 9.11.1 or later.
+    type: bool
+    version_added: 24.0.0
+
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -423,7 +437,7 @@ import copy
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
@@ -477,6 +491,8 @@ class NetAppOntapSVM():
             auto_enable_analytics=dict(type='bool', required=False),
             auto_enable_activity_tracking=dict(type='bool', required=False),
             anti_ransomware_default_volume_state=dict(type='str', choices=['disabled', 'dry_run'], required=False),
+            is_space_reporting_logical=dict(type='bool', required=False),
+            is_space_enforcement_logical=dict(type='bool', required=False),
         ))
 
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
@@ -579,6 +595,10 @@ class NetAppOntapSVM():
                 # so that we can compare UUIDs while using a more friendly name in the user interface
                 self.parameters['web']['certificate'] = {'name': self.parameters['web']['certificate']}
                 self.set_certificate_uuid()
+        for option in ('is_space_reporting_logical', 'is_space_enforcement_logical'):
+            if use_rest and self.parameters.get(option) is not None and \
+                    not self.rest_api.meets_rest_minimum_version(use_rest, 9, 11, 1):
+                self.module.fail_json(msg=self.rest_api.options_require_ontap_version(option, '9.11.1', use_rest=use_rest))
         if use_rest and self.parameters.get('auto_enable_analytics') is not None and \
                 not self.rest_api.meets_rest_minimum_version(use_rest, 9, 12, 1):
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('auto_enable_analytics', '9.12.1', use_rest=use_rest))
@@ -648,6 +668,8 @@ class NetAppOntapSVM():
         vserver_details['auto_enable_analytics'] = self.na_helper.safe_get(vserver_details, ['auto_enable_analytics'])
         vserver_details['auto_enable_activity_tracking'] = self.na_helper.safe_get(vserver_details, ['auto_enable_activity_tracking'])
         vserver_details['anti_ransomware_default_volume_state'] = self.na_helper.safe_get(vserver_details, ['anti_ransomware_default_volume_state'])
+        vserver_details['is_space_reporting_logical'] = self.na_helper.safe_get(vserver_details, ['is_space_reporting_logical'])
+        vserver_details['is_space_enforcement_logical'] = self.na_helper.safe_get(vserver_details, ['is_space_enforcement_logical'])
 
         return vserver_details
 
@@ -711,6 +733,8 @@ class NetAppOntapSVM():
                 fields += ',ndmp,anti_ransomware_default_volume_state'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
                 fields += ',s3'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
+                fields += ',is_space_reporting_logical,is_space_enforcement_logical'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
                 fields += ',auto_enable_analytics,auto_enable_activity_tracking'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
@@ -811,6 +835,10 @@ class NetAppOntapSVM():
             body['storage.limit'] = self.parameters['storage_limit']
         if 'storage_limit_threshold_alert' in keys_to_modify:
             body['storage.limit_threshold_alert'] = self.parameters['storage_limit_threshold_alert']
+        if 'is_space_reporting_logical' in keys_to_modify:
+            body['is_space_reporting_logical'] = self.parameters['is_space_reporting_logical']
+        if 'is_space_enforcement_logical' in keys_to_modify:
+            body['is_space_enforcement_logical'] = self.parameters['is_space_enforcement_logical']
         return body, allowed_protocols
 
     def get_allowed_protocols_and_max_volumes(self):

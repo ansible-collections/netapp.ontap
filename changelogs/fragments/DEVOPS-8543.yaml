@@ -1,0 +1,3 @@
+---
+minor_changes:
+  - na_ontap_export_policy_rule - New REST only option `allow_nfs_tls_only`, requires ONTAP 9.19.1 or later.

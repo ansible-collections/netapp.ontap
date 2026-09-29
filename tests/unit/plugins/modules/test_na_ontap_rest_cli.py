@@ -1,4 +1,4 @@
-# (c) 2019-2024, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_rest_cli'''
@@ -56,6 +56,17 @@ DEFAULT_ARGS = {
 }
 
 
+GCNV_DEFAULT_ARGS = {
+    'google_netapp_unified_pool': {
+        'project_id': 'project',
+        'location': 'us-central1-a',
+        'storage_pool': 'pool1',
+        'access_token': 'token'
+    },
+    'use_rest': 'always',
+}
+
+
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     register_responses([
@@ -72,6 +83,19 @@ def test_rest_cli():
         ('GET', 'private/cli/volume', SRR['empty_good']),
     ])
     assert call_main(my_main, DEFAULT_ARGS)['changed'] is False
+
+
+def test_rest_cli_gcnv():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'private/cli/volume', SRR['empty_good']),
+    ])
+    args = {
+        'command': 'volume',
+        'verb': 'GET',
+        'params': {'fields': 'size,percent_used'}
+    }
+    assert call_main(my_main, DEFAULT_ARGS, args)['changed'] is False
 
 
 def test_rest_cli_options():

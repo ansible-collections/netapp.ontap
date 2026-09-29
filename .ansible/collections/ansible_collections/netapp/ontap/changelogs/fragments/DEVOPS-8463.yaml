@@ -1,0 +1,5 @@
+---
+major_changes:
+  - na_ontap_snapshot - GCNV support added to the module.
+  - na_ontap_snapshot_policy - GCNV support added to the module.
+  - na_ontap_qtree - GCNV support added to the module.

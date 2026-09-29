@@ -101,6 +101,50 @@ options:
         description:
           - Virtual Attached Storage License
 
+  gcnv:
+    description:
+      - Configuration parameters for Google Cloud NetApp Volumes (GCNV) ONTAP-mode passthrough.
+      - These options are only supported with REST.
+      - When set, C(hostname), C(username), and C(password) are not required.
+      - Option alias C(google_netapp_unified_pool) is supported.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      project_id:
+        description:
+          - Google Cloud project ID.
+        type: str
+        required: true
+      location:
+        description:
+          - Google Cloud location, for example C(us-central1-a).
+        type: str
+        required: true
+      storage_pool:
+        description:
+          - GCNV storage pool name.
+        type: str
+        required: true
+      custom_base_url:
+        description:
+          - GCNV API base URL including version.
+          - Defaults to C(https://netapp.googleapis.com/v1).
+        type: str
+        default: 'https://netapp.googleapis.com/v1'
+      access_token:
+        description:
+          - OAuth 2.0 bearer token (JWT) used for authorization.
+          - "Passed as C(Authorization: Bearer <token>)."
+        type: str
+        required: true
+
+  hostname:
+    description:
+      - The hostname or IP address of the ONTAP instance.
+      - Not required when C(gcnv) is configured.
+    type: str
+    required: false
+
   license_codes:
     description:
       - List of license codes to be installed.
@@ -117,6 +161,7 @@ notes:
   - This module requires the python ast and json packages when the string filter is not used.
   - This module requires the json package to check for idempotency, and to remove licenses using a NLFv2 file.
   - This module requires the deepdiff package to check for idempotency.
+  - Supports GCNV ONTAP-mode REST passthrough when C(gcnv) is provided.
   - None of these packages are required when the string filter is used, but the module will not be idempotent.
 '''
 
@@ -155,6 +200,30 @@ EXAMPLES = """
     remove_expired: true
     serial_number: #################
     license_names: "Enterprise Edition"
+
+- name: Add license with GCNV ONTAP-mode passthrough
+  netapp.ontap.na_ontap_license:
+    state: present
+    license_codes:
+      - "LICENSECODE"
+    use_rest: always
+    gcnv:
+      project_id: "my-gcp-project-id"
+      location: "us-central1-a"
+      storage_pool: "my-storage-pool"
+      access_token: "{{ gcnv_access_token }}"
+
+- name: Add license using GCNV alias google_netapp_unified_pool
+  netapp.ontap.na_ontap_license:
+    state: present
+    license_codes:
+      - "LICENSECODE"
+    use_rest: always
+    google_netapp_unified_pool:
+      project_id: "my-gcp-project-id"
+      location: "us-central1-a"
+      storage_pool: "my-storage-pool"
+      access_token: "{{ gcnv_access_token }}"
 """
 
 RETURN = """
@@ -195,7 +264,7 @@ import time
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
@@ -222,6 +291,7 @@ class NetAppOntapLicense:
 
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             serial_number=dict(required=False, type='str'),
@@ -232,9 +302,12 @@ class NetAppOntapLicense:
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            mutually_exclusive=[
+                ['use_lambda', 'gcnv'], ['gcnv', 'hostname']
+            ],
             supports_check_mode=False,
             required_if=[
-                ('state', 'absent', ['license_codes', 'license_names'], True)],
+                ('state', 'absent', ['license_codes', 'license_names'], True),],
             required_together=[
                 ('serial_number', 'license_names')],
         )

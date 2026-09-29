@@ -186,11 +186,55 @@ options:
           - The name of the AWS profile to use for authentication.
         type: str
 
+  gcnv:
+    description:
+      - Configuration parameters for Google Cloud NetApp Volumes (GCNV) ONTAP-mode passthrough.
+      - These options are only supported with REST.
+      - When set, C(hostname), C(username), and C(password) are not required.
+      - Option alias C(google_netapp_unified_pool) is supported.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      project_id:
+        description:
+          - Google Cloud project ID.
+        type: str
+        required: true
+      location:
+        description:
+          - Google Cloud location, for example C(us-central1-a).
+        type: str
+        required: true
+      storage_pool:
+        description:
+          - GCNV storage pool name.
+        type: str
+        required: true
+      custom_base_url:
+        description:
+          - GCNV API base URL including version.
+          - Defaults to C(https://netapp.googleapis.com/v1).
+        type: str
+        default: 'https://netapp.googleapis.com/v1'
+      access_token:
+        description:
+          - OAuth 2.0 bearer token (JWT) used for authorization.
+          - Passed as a Bearer token in the HTTP Authorization header.
+        type: str
+        required: true
+  hostname:
+    description:
+      - The hostname or IP address of the ONTAP instance.
+      - Not required when C(gcnv) is configured.
+    type: str
+    required: false
+
 notes:
   - LDAP client created using ZAPI should be deleted using ZAPI.
   - LDAP client created using REST should be deleted using REST.
   - REST only supports create, modify and delete data svm ldap client configuration.
   - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
+  - Supports GCNV ONTAP-mode REST passthrough when C(gcnv) is provided. See the README file for examples.
 
 '''
 
@@ -226,7 +270,7 @@ RETURN = '''
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
@@ -240,6 +284,7 @@ class NetAppOntapLDAPClient:
 
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
             ad_domain=dict(required=False, default=None, type='str'),
             base_dn=dict(required=False, type='str'),
@@ -277,7 +322,9 @@ class NetAppOntapLDAPClient:
             mutually_exclusive=[
                 ['servers', 'ad_domain'],
                 ['servers', 'preferred_ad_servers'],
-                ['use_start_tls', 'ldaps_enabled']
+                ['use_start_tls', 'ldaps_enabled'],
+                ['use_lambda', 'gcnv'],
+                ['gcnv', 'hostname']
             ],
         )
         self.na_helper = NetAppModule()
@@ -469,21 +516,25 @@ class NetAppOntapLDAPClient:
         """
         if not self.use_rest:
             return self.get_ldap_client()
-        query = {'svm.name': self.parameters.get('vserver'),
-                 'fields': 'svm.uuid,'
-                           'ad_domain,'
-                           'servers,'
-                           'preferred_ad_servers,'
-                           'bind_dn,'
-                           'schema,'
-                           'port,'
-                           'base_dn,'
-                           'base_scope,'
-                           'min_bind_level,'
-                           'session_security,'
-                           'use_start_tls,'}
+        query = {
+            'fields': 'svm.uuid,'
+                      'ad_domain,'
+                      'servers,'
+                      'preferred_ad_servers,'
+                      'bind_dn,'
+                      'schema,'
+                      'port,'
+                      'base_dn,'
+                      'base_scope,'
+                      'min_bind_level,'
+                      'session_security,'
+                      'use_start_tls,'}
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 0):
             query['fields'] += 'bind_as_cifs_server,query_timeout,referral_enabled,ldaps_enabled,group_dn,user_dn'
+        if self.parameters.get('gcnv'):
+            query['svm'] = self.parameters.get('vserver')
+        else:
+            query['svm.name'] = self.parameters.get('vserver')
         record, error = rest_generic.get_one_record(self.rest_api, 'name-services/ldap', query)
         if error:
             self.module.fail_json(msg="Error on getting idap client info: %s" % error)

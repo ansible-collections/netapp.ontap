@@ -1,0 +1,3 @@
+---
+minor_changes:
+  - na_ontap_svm - New REST only options `is_space_reporting_logical`, `is_space_enforcement_logical`, requires ONTAP 9.11.1 or later.

@@ -1,0 +1,9 @@
+---
+major_changes:
+  - na_ontap_security_certificates - AWS Lambda support added to the module.
+  - na_ontap_security_ipsec_config - AWS Lambda support added to the module.
+  - na_ontap_security_ipsec_policy - AWS Lambda support added to the module.
+  - na_ontap_nvme - AWS Lambda support added to the module.
+  - na_ontap_nvme_subsystem - AWS Lambda support added to the module.
+  - na_ontap_active_directory_domain_controllers - AWS Lambda support added to the module.
+  - na_ontap_active_directory - AWS Lambda support added to the module.

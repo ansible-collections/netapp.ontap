@@ -1,4 +1,4 @@
-# (c) 2019-2023, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_volume_export_policy '''
@@ -275,3 +275,75 @@ class TestMyModule(unittest.TestCase):
             self.get_export_policy_mock_object(cx_type='rest').apply()
         print(exc.value.args[0]['msg'])
         assert 'Error on renaming export policy: calling: protocols/nfs/export-policies/123: got Expected error.' in exc.value.args[0]['msg']
+
+    def test_module_fail_when_no_hostname_and_no_gcnv(self):
+        data = self.mock_args(rest=True)
+        data['hostname'] = None
+        data['username'] = None
+        data['password'] = None
+        msg = 'Error: hostname is required when gcnv is not configured.'
+        with pytest.raises(AnsibleFailJson) as exc:
+            set_module_args(data)
+            policy_module()
+        assert msg == exc.value.args[0]['msg']
+
+    def test_module_fail_when_gcnv_and_use_lambda_and_hostname(self):
+        data = {
+            'hostname': None,
+            'vserver': self.mock_export_policy['vserver'],
+            'name': self.mock_export_policy['name'],
+            'use_rest': 'always',
+            'use_lambda': True,
+            'google_netapp_unified_pool': {
+                'project_id': 'proj',
+                'location': 'us-central1-a',
+                'storage_pool': 'pool1',
+                'access_token': 'token'
+            }
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            set_module_args(data)
+            policy_module()
+        assert 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname' in exc.value.args[0]['msg']
+
+    def test_module_fail_when_gcnv_use_rest_not_always(self):
+        data = {
+            'vserver': self.mock_export_policy['vserver'],
+            'name': self.mock_export_policy['name'],
+            'use_rest': 'never',
+            'google_netapp_unified_pool': {
+                'project_id': 'proj',
+                'location': 'us-central1-a',
+                'storage_pool': 'pool1',
+                'access_token': 'token'
+            }
+        }
+        msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+        with pytest.raises(AnsibleFailJson) as exc:
+            set_module_args(data)
+            policy_module()
+        assert msg == exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_module_success_with_google_netapp_unified_pool_alias(self, mock_request):
+        data = {
+            'vserver': self.mock_export_policy['vserver'],
+            'name': self.mock_export_policy['name'],
+            'use_rest': 'always',
+            'google_netapp_unified_pool': {
+                'project_id': 'proj',
+                'location': 'us-central1-a',
+                'storage_pool': 'pool1',
+                'access_token': 'token'
+            }
+        }
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['empty_good'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_export_policy_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['changed']

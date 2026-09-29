@@ -1,0 +1,5 @@
+---
+major_changes:
+  - na_ontap_rest_cli - GCNV support added to the module.
+  - na_ontap_rest_info - GCNV support added to the module.
+  - na_ontap_restit - GCNV support added to the module.

@@ -1,0 +1,3 @@
+---
+major_changes:
+  - na_ontap_export_policy - GCNV support added to the module.

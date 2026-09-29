@@ -1,4 +1,4 @@
-# (c) 2025, NetApp, Inc
+# (c) 2025-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_ems_filter module '''
@@ -485,3 +485,64 @@ def test_modify_ems_filter_parameter_criteria():
     ])
     module_args = {'rules': DEFAULT_RULE_MODIFY_PARAMETER_CRITERIA_2_RULES}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+GCNV_DEFAULT_ARGS = {
+    'name': "snmp-traphost",
+    'use_rest': 'always',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': "10.10.0.0",
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(my_main, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_success_with_google_netapp_unified_pool_alias():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'support/ems/filters', SRR['empty_records']),
+        ('POST', 'support/ems/filters', SRR['empty_good'])
+    ])
+    module_args = {
+        'rules': DEFAULT_RULE,
+        'use_rest': 'always',
+        'google_netapp_unified_pool': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    assert create_and_apply(my_module, GCNV_DEFAULT_ARGS, module_args)['changed']

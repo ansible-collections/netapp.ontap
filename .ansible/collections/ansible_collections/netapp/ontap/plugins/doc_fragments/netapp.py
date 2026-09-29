@@ -108,6 +108,42 @@ options:
       type: bool
       default: false
       version_added: "23.2.0"
+  gcnv:
+      description:
+        - Configuration parameters for Google Cloud NetApp Volumes (GCNV) ONTAP-mode passthrough.
+        - Supported only with REST.
+        - Not compatible with C(use_lambda), C(cert_filepath), or C(key_filepath).
+      type: dict
+      version_added: "24.0.0"
+      aliases: [google_netapp_unified_pool]
+      suboptions:
+        project_id:
+          description:
+            - Google Cloud project ID.
+          type: str
+          required: true
+        location:
+          description:
+            - Google Cloud location (for example C(us-central1-a)).
+          type: str
+          required: true
+        storage_pool:
+          description:
+            - GCNV storage pool name.
+          type: str
+          required: true
+        custom_base_url:
+          description:
+            - GCNV API base URL including version.
+            - Defaults to C(https://netapp.googleapis.com/v1).
+          type: str
+          default: 'https://netapp.googleapis.com/v1'
+        access_token:
+          description:
+            - OAuth 2.0 bearer token (JWT) used for authorization.
+            - Passed as a Bearer token in the HTTP Authorization header.
+          type: str
+          required: true
 requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.
@@ -286,6 +322,42 @@ options:
       type: bool
       default: false
       version_added: "23.4.0"
+  gcnv:
+      description:
+        - Configuration parameters for Google Cloud NetApp Volumes (GCNV) ONTAP-mode passthrough.
+        - Supported only with REST.
+        - Not compatible with C(use_lambda), C(cert_filepath), or C(key_filepath).
+      type: dict
+      version_added: "24.0.0"
+      aliases: [google_netapp_unified_pool]
+      suboptions:
+        project_id:
+          description:
+            - Google Cloud project ID.
+          type: str
+          required: true
+        location:
+          description:
+            - Google Cloud location (for example C(us-central1-a)).
+          type: str
+          required: true
+        storage_pool:
+          description:
+            - GCNV storage pool name.
+          type: str
+          required: true
+        custom_base_url:
+          description:
+            - GCNV API base URL including version.
+            - Defaults to C(https://netapp.googleapis.com/v1).
+          type: str
+          default: 'https://netapp.googleapis.com/v1'
+        access_token:
+          description:
+            - OAuth 2.0 bearer token (JWT) used for authorization.
+            - Passed as a Bearer token in the HTTP Authorization header.
+          type: str
+          required: true
 requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.
@@ -395,4 +467,40 @@ options:
             description:
               - The name of the AWS profile to use for authentication.
             type: str
+      gcnv:
+        description:
+          - Configuration parameters for Google Cloud NetApp Volumes (GCNV) ONTAP-mode passthrough.
+          - Supported only with REST.
+          - Not compatible with C(use_lambda), C(cert_filepath), or C(key_filepath).
+        type: dict
+        version_added: "24.0.0"
+        aliases: [google_netapp_unified_pool]
+        suboptions:
+          project_id:
+            description:
+              - Google Cloud project ID.
+            type: str
+            required: true
+          location:
+            description:
+              - Google Cloud location (for example C(us-central1-a)).
+            type: str
+            required: true
+          storage_pool:
+            description:
+              - GCNV storage pool name.
+            type: str
+            required: true
+          custom_base_url:
+            description:
+              - GCNV API base URL including version.
+              - Defaults to C(https://netapp.googleapis.com/v1).
+            type: str
+            default: 'https://netapp.googleapis.com/v1'
+          access_token:
+            description:
+              - OAuth 2.0 bearer token (JWT) used for authorization.
+              - Passed as a Bearer token in the HTTP Authorization header.
+            type: str
+            required: true
 '''

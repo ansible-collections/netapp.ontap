@@ -59,10 +59,32 @@ options:
       - For ASA r2 systems, The paths should match the format <name>[@<snapshot-name>].
     type: list
     elements: str
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
 short_description: "NetApp ONTAP Manage NVME Subsystem"
 version_added: 2.8.0
 notes:
   - Compatible with ASA r2 system when using REST for ONTAP releases 9.16.0x onwards.
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 '''
 
 EXAMPLES = """
@@ -117,7 +139,7 @@ RETURN = """
 
 import traceback
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, rest_ontap_personality
@@ -144,9 +166,12 @@ class NetAppONTAPNVMESubsystem:
             paths=dict(required=False, type='list', elements='str')
         ))
 
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            required_if=[('use_lambda', True, ('lambda_config',))],
         )
 
         self.na_helper = NetAppModule(self.module)
@@ -164,6 +189,8 @@ class NetAppONTAPNVMESubsystem:
                         # If the path is passed as vol/vol1/ns it will be converted to ns for asa r2 systems.
                         self.parameters['paths'] = [item.split("/")[-1] for item in self.parameters['paths']]
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])

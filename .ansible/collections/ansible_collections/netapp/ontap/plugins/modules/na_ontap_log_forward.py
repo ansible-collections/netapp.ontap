@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2024, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -61,6 +61,15 @@ options:
     description:
     - Verify Destination Server Identity
     type: bool
+
+  message_format:
+    description:
+    - Syslog message format to be used.
+    - C(legacy_netapp) format (variation of RFC-3164) is default message format.
+    - Supported with REST in ONTAP 9.13.1 or later.
+    type: str
+    choices: ['legacy_netapp', 'rfc_5424']
+    version_added: 24.0.0
 '''
 
 EXAMPLES = """
@@ -69,6 +78,7 @@ EXAMPLES = """
     state: present
     destination: 10.11.12.13
     port: 514
+    message_format: legacy_netapp
     protocol: udp_unencrypted
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -80,6 +90,7 @@ EXAMPLES = """
     destination: 10.11.12.13
     port: 514
     protocol: tcp_unencrypted
+    message_format: rfc_5424
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     hostname: "{{ netapp_hostname }}"
@@ -100,7 +111,7 @@ RETURN = """
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
@@ -119,7 +130,8 @@ class NetAppOntapLogForward(object):
             facility=dict(required=False, type='str', choices=['kern', 'user', 'local0', 'local1', 'local2', 'local3', 'local4', 'local5', 'local6', 'local7']),
             force=dict(required=False, type='bool'),
             protocol=dict(required=False, type='str', choices=['udp_unencrypted', 'tcp_unencrypted', 'tcp_encrypted']),
-            verify_server=dict(required=False, type='bool')
+            verify_server=dict(required=False, type='bool'),
+            message_format=dict(required=False, type='str', choices=['legacy_netapp', 'rfc_5424'])
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -130,7 +142,8 @@ class NetAppOntapLogForward(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         self.rest_api = OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest()
+        partially_supported_rest_properties = [['message_format', (9, 13, 1)],]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, [], partially_supported_rest_properties)
 
         if not self.use_rest:
             if HAS_NETAPP_LIB is False:
@@ -150,6 +163,8 @@ class NetAppOntapLogForward(object):
             query = {'fields': 'port,protocol,facility,address,verify_server',
                      'address': self.parameters['destination'],
                      'port': self.parameters['port']}
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
+                query['fields'] += ',message_format'
 
             message, error = self.rest_api.get(api, query)
             if error:
@@ -166,7 +181,8 @@ class NetAppOntapLogForward(object):
                 'facility': message['records'][0]['facility'],
                 'port': message['records'][0]['port'],
                 'protocol': message['records'][0]['protocol'],
-                'verify_server': message['records'][0]['verify_server']
+                'verify_server': message['records'][0]['verify_server'],
+                'message_format': message['records'][0]['message_format']
             }
 
             return log_forward_config
@@ -216,10 +232,9 @@ class NetAppOntapLogForward(object):
             body['address'] = self.parameters['destination']
             body['port'] = self.parameters['port']
 
-            for attr in ('protocol', 'facility', 'verify_server', 'force'):
+            for attr in ('protocol', 'facility', 'verify_server', 'force', 'message_format'):
                 if attr in self.parameters:
                     body[attr] = self.parameters[attr]
-
             dummy, error = self.rest_api.post(api, body)
             if error:
                 self.module.fail_json(msg=error)

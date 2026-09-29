@@ -205,6 +205,19 @@ options:
     type: bool
     version_added: 22.10.0
 
+  advertised_kdc_encryptions:
+    description:
+      - Specifies the KDC encryption types advertised by the CIFS server.
+      - des - Data Encryption Standard
+      - rc4 - RC4-HMAC
+      - aes_128 - Advanced Encryption Standard with 128-bit encryption
+      - aes_256 - Advanced Encryption Standard with 256-bit encryption
+      - Only supported with REST and requires ontap version 9.12.1 or later.
+    choices: ['des', 'rc4', 'aes_128', 'aes_256']
+    type: list
+    elements: str
+    version_added: 24.0.0
+
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -304,6 +317,7 @@ EXAMPLES = '''
     use_ldaps: true
     use_start_tls: true
     restrict_anonymous: no_access
+    advertised_kdc_encryptions: ["des", "rc4", "aes_128", "aes_256"]
     domain: "{{ id_domain }}"
     admin_user_name: "{{ domain_login }}"
     admin_password: "{{ domain_pwd }}"
@@ -318,7 +332,7 @@ RETURN = '''
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
@@ -360,6 +374,8 @@ class NetAppOntapcifsServer:
             use_ldaps=dict(required=False, type='bool'),
             use_start_tls=dict(required=False, type='bool'),
             is_multichannel_enabled=dict(required=False, type='bool'),
+            advertised_kdc_encryptions=dict(required=False, type='list', elements='str',
+                                            choices=['des', 'rc4', 'aes_128', 'aes_256']),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
@@ -382,7 +398,8 @@ class NetAppOntapcifsServer:
         partially_supported_rest_properties = [['encrypt_dc_connection', (9, 8)], ['lm_compatibility_level', (9, 8)],
                                                ['aes_netlogon_enabled', (9, 10, 1)], ['ldap_referral_enabled', (9, 10, 1)], ['session_security', (9, 10, 1)],
                                                ['try_ldap_channel_binding', (9, 10, 1)], ['use_ldaps', (9, 10, 1)], ['use_start_tls', (9, 10, 1)],
-                                               ['is_multichannel_enabled', (9, 10, 1)], ['force', (9, 11)], ['default_site', (9, 13, 1)]]
+                                               ['is_multichannel_enabled', (9, 10, 1)], ['force', (9, 11)], ['advertised_kdc_encryptions', (9, 12, 1)],
+                                               ['default_site', (9, 13, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -390,7 +407,8 @@ class NetAppOntapcifsServer:
                 self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             unsupported_zapi_properties = ['comment', 'smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                                            'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security',
-                                           'lm_compatibility_level', 'use_ldaps', 'use_start_tls', 'from_name', 'default_site', 'is_multichannel_enabled']
+                                           'lm_compatibility_level', 'use_ldaps', 'use_start_tls', 'from_name', 'default_site', 'is_multichannel_enabled',
+                                           'advertised_kdc_encryptions']
             used_unsupported_zapi_properties = [option for option in unsupported_zapi_properties if option in self.parameters]
             if used_unsupported_zapi_properties:
                 self.module.fail_json(msg="Error: %s options supported only with REST." % " ,".join(used_unsupported_zapi_properties))
@@ -542,6 +560,11 @@ class NetAppOntapcifsServer:
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
             service_option_9_10 = ('options.multichannel,')
             query['fields'] += service_option_9_10
+
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
+            security_option_9_12 = ('security.advertised_kdc_encryptions,')
+            query['fields'] += security_option_9_12
+
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
             self.module.fail_json(msg="Error on fetching cifs: %s" % error)
@@ -568,6 +591,7 @@ class NetAppOntapcifsServer:
                 'ou': self.na_helper.safe_get(record, ['ad_domain', 'organizational_unit']),
                 'domain': self.na_helper.safe_get(record, ['ad_domain', 'fqdn']),
                 'default_site': self.na_helper.safe_get(record, ['ad_domain', 'default_site']),
+                'advertised_kdc_encryptions': self.na_helper.safe_get(record, ['security', 'advertised_kdc_encryptions']),
             }
         return record
 
@@ -596,7 +620,7 @@ class NetAppOntapcifsServer:
             params = self.parameters
         security_options = ['smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                             'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security',
-                            'lm_compatibility_level', 'use_ldaps', 'use_start_tls']
+                            'lm_compatibility_level', 'use_ldaps', 'use_start_tls', 'advertised_kdc_encryptions']
         ad_domain = self.build_ad_domain(params)
         if ad_domain:
             body['ad_domain'] = ad_domain
@@ -607,6 +631,7 @@ class NetAppOntapcifsServer:
                 security[key] = params[key]
         if security:
             body['security'] = security
+
         # for parameters having different key names in REST API and module inputs
         for key, option in [
             ('multichannel', 'is_multichannel_enabled'),
@@ -661,6 +686,18 @@ class NetAppOntapcifsServer:
         if not self.use_rest:
             return self.modify_cifs_server()
         body, query = self.create_modify_body_rest(modify)
+        if body:
+            if 'security' in body and 'advertised_kdc_encryptions' in body['security']:
+                # Domain credentials are required to update advertised_kdc_encryptions.
+                # Use credentials already present in ad_domain; if missing, fall back to self.parameters.
+                if not (body.get('ad_domain', {}).get('user') and body.get('ad_domain', {}).get('password')):
+                    if 'admin_user_name' in self.parameters and 'admin_password' in self.parameters:
+                        if 'ad_domain' not in body:
+                            body['ad_domain'] = {}
+                        body['ad_domain']['user'] = self.parameters['admin_user_name']
+                        body['ad_domain']['password'] = self.parameters['admin_password']
+                    else:
+                        self.module.fail_json(msg="Error: admin_user_name and admin_password are required when modifying advertised_kdc_encryptions.")
         api = 'protocols/cifs/services'
         dummy, error = rest_generic.patch_async(self.rest_api, api, current['svm']['uuid'], body, query)
         if error is not None:

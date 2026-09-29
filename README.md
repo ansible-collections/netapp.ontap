@@ -60,6 +60,50 @@ The following modules do not have REST equivalent APIs.
 # Support
 Certain modules and options in the collection are only available from specific versions of ONTAP. The versions that a module or option supports are documented in the individual module documentation.
 
+## Google Cloud NetApp Volumes (gcnv) for NetApp ONTAP
+**Note:** Each module's documentation indicates whether it supports Google Cloud NetApp Volumes (gcnv) for NetApp ONTAP functionality.
+
+Please find below an example for using Google Cloud NetApp Volumes (gcnv).
+```yaml
+---
+- name: Manage volume using Google Cloud NetApp Volumes (gcnv)
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Create a volume using GCNV ONTAP-mode passthrough
+      netapp.ontap.na_ontap_volume:
+        gcnv:
+          project_id: "my-gcp-project-id"
+          location: "us-central1-a"
+          storage_pool: "my-storage-pool"
+          access_token: "{{ gcnv_access_token }}"
+        name: test_volume
+        vserver: test_svm
+        size: 20
+        size_unit: mb
+        aggregate_name: test_aggr
+        state: present
+        use_rest: always
+      register: volume_create_result
+
+    - name: Create a volume using GCNV alias google_netapp_unified_pool
+      netapp.ontap.na_ontap_volume:
+        google_netapp_unified_pool:
+          project_id: "my-gcp-project-id"
+          location: "us-central1-a"
+          storage_pool: "my-storage-pool"
+          access_token: "{{ gcnv_access_token }}"
+        name: test_volume
+        vserver: test_svm
+        size: 20
+        size_unit: mb
+        aggregate_name: test_aggr
+        state: present
+        use_rest: always
+      register: volume_create_result
+```
+
 ## AWS FSx for NetApp ONTAP
 **Note:** Each module's documentation indicates whether it supports AWS FSx for NetApp ONTAP functionality.
 

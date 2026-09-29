@@ -64,9 +64,52 @@ options:
         description:
           - The name of the AWS profile to use for authentication.
         type: str
+  gcnv:
+    description:
+      - Configuration parameters for Google Cloud NetApp Volumes (GCNV) ONTAP-mode passthrough.
+      - These options are only supported with REST.
+      - When set, C(hostname), C(username), and C(password) are not required.
+      - Option alias C(google_netapp_unified_pool) is supported.
+    type: dict
+    version_added: 24.0.0
+    suboptions:
+      project_id:
+        description:
+          - Google Cloud project ID.
+        type: str
+        required: true
+      location:
+        description:
+          - Google Cloud location, for example C(us-central1-a).
+        type: str
+        required: true
+      storage_pool:
+        description:
+          - GCNV storage pool name.
+        type: str
+        required: true
+      custom_base_url:
+        description:
+          - GCNV API base URL including version.
+          - Defaults to C(https://netapp.googleapis.com/v1).
+        type: str
+        default: 'https://netapp.googleapis.com/v1'
+      access_token:
+        description:
+          - OAuth 2.0 bearer token (JWT) used for authorization.
+          - Passed as a Bearer token in the HTTP Authorization header.
+        type: str
+        required: true
+  hostname:
+    description:
+      - The hostname or IP address of the ONTAP instance.
+      - Not required when C(gcnv) is configured.
+    type: str
+    required: false
 
 notes:
   - Supports AWS Lambda proxy functionality. See README for example usage.
+  - Supports GCNV ONTAP-mode REST passthrough when C(gcnv) is provided. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -161,6 +204,7 @@ class NetAppONTAPCommandREST():
     def __init__(self):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
+        self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
             command=dict(required=True, type='str'),
             verb=dict(required=True, type='str', choices=['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']),
@@ -170,6 +214,10 @@ class NetAppONTAPCommandREST():
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            mutually_exclusive=[
+                ('use_lambda', 'gcnv'),
+                ('gcnv', 'hostname')
+            ],
             required_if=[
                 ('use_lambda', True, ['lambda_config']),
             ],
