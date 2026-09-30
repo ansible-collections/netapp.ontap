@@ -1,0 +1,2 @@
+bugfixes:
+  - modules and module utils - fix deprecation warning when importing the `to_native`, `to_text` and `to_bytes` functions by using the new import path
