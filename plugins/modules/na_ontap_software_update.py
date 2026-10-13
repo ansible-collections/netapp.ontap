@@ -20,6 +20,12 @@ extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_software_update
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   state:
     choices: ['present', 'absent']
     description:
@@ -166,6 +172,7 @@ class NetAppONTAPSoftwareUpdate:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             https=dict(required=False, type='bool', default=True),
             nodes=dict(required=False, type='list', elements='str', aliases=["node", "nodes_to_update"]),
@@ -190,7 +197,8 @@ class NetAppONTAPSoftwareUpdate:
             self.module.fail_json(msg='Error: https parameter must be True')
         self.validation_reports_after_download = ['only available if validate_after_download is true']
         self.versions = ['not available with force_update']
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         partially_supported_rest_properties = [['stabilize_minutes', (9, 8)], ['nodes', (9, 9)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
         if not self.use_rest:

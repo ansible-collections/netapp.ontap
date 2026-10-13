@@ -23,6 +23,12 @@ description:
 - Install or delete security certificates on ONTAP.  (Create and sign will come in a second iteration)
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
 
   state:
     description:
@@ -399,6 +405,7 @@ class NetAppOntapSecurityCertificates:
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             common_name=dict(required=False, type='str'),
             name=dict(required=False, type='str'),
             state=dict(required=False, choices=['present', 'absent'], default='present'),
@@ -445,7 +452,8 @@ class NetAppOntapSecurityCertificates:
 
         # ONTAP 9.6 and 9.7 do not support name.  We'll change this to True if we detect an issue.
         self.ignore_name_param = False
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
         # API should be used for ONTAP 9.6 or higher
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_security_certificates', 9, 6)

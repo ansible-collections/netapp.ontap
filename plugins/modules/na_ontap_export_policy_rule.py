@@ -24,6 +24,13 @@ description:
   - Create or delete or modify export rules in ONTAP
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Whether the specified export policy rule should exist or not.
@@ -305,6 +312,7 @@ class NetAppontapExportRule:
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str', aliases=['policy_name']),
             protocol=dict(required=False,
@@ -347,7 +355,8 @@ class NetAppontapExportRule:
         self.set_playbook_zapi_key_map()
         self.policy_id = None
 
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         partially_supported_rest_properties = [['ntfs_unix_security', (9, 9, 1)], ['allow_suid', (9, 9, 1)],
                                                ['allow_device_creation', (9, 9, 1)], ['chown_mode', (9, 9, 1)],
                                                ['allow_nfs_tls_only', (9, 19, 1)]]

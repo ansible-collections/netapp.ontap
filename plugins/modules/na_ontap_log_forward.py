@@ -21,6 +21,13 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
 - Create, delete or modify the log forward configuration
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
     - Whether the log forward configuration should exist or not
@@ -124,6 +131,7 @@ class NetAppOntapLogForward(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(choices=['present', 'absent'], default='present'),
             destination=dict(required=True, type='str'),
             port=dict(required=True, type='int'),
@@ -141,7 +149,8 @@ class NetAppOntapLogForward(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         partially_supported_rest_properties = [['message_format', (9, 13, 1)],]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, [], partially_supported_rest_properties)
 

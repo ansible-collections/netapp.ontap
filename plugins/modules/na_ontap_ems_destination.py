@@ -20,6 +20,13 @@ author: Bartosz Bielawski (@bielawb) <bartek.bielawski@live.com>
 description:
   - Configure EMS destination.
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Whether the destination should be present or not.
@@ -194,6 +201,7 @@ class NetAppOntapEmsDestination:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             type=dict(required=True, type='str', choices=['email', 'syslog', 'rest_api']),
@@ -223,7 +231,8 @@ class NetAppOntapEmsDestination:
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         partially_supported_rest_properties = [['certificate', (9, 11, 1)], ['syslog', (9, 12, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, partially_supported_rest_properties=partially_supported_rest_properties)
 

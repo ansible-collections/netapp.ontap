@@ -25,6 +25,12 @@ description:
 - Create or destroy users.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   state:
     description:
       - Whether the specified user should exist or not.
@@ -306,6 +312,7 @@ class NetAppOntapUser:
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
 
@@ -355,7 +362,8 @@ class NetAppOntapUser:
         self.strs_to_dicts()
 
         # REST API should be used for ONTAP 9.6 or higher
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['authentication_password', 'authentication_protocol', 'engine_id',
                                        'privacy_password', 'privacy_protocol']

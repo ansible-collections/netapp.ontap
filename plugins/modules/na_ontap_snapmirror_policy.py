@@ -23,6 +23,12 @@ description:
   - Add, modify and remove SnapMirror policy rules
   - Following parameters are not supported in REST; 'owner', 'restart', 'transfer_priority', 'tries', 'ignore_atime', 'common_snapshot_schedule'
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   state:
     description:
       - Whether the specified SnapMirror policy should exist or not.
@@ -341,6 +347,7 @@ class NetAppOntapSnapMirrorPolicy:
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             vserver=dict(required=False, type='str'),
             policy_name=dict(required=True, type='str', aliases=['name']),
@@ -378,7 +385,8 @@ class NetAppOntapSnapMirrorPolicy:
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # API should be used for ONTAP 9.6 or higher, Zapi for lower version
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['owner', 'restart', 'transfer_priority', 'tries', 'ignore_atime',
                                        'common_snapshot_schedule']

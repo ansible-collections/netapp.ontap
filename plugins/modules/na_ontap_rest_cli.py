@@ -22,6 +22,13 @@ module: na_ontap_rest_cli
 short_description: NetApp ONTAP run any CLI command using REST api/private/cli/
 version_added: 2.9.0
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   command:
     description:
       - A CLI command.
@@ -206,6 +213,7 @@ class NetAppONTAPCommandREST():
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             command=dict(required=True, type='str'),
             verb=dict(required=True, type='str', choices=['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']),
             params=dict(required=False, type='dict'),
@@ -223,8 +231,9 @@ class NetAppONTAPCommandREST():
             ],
             supports_check_mode=True
         )
-        self.rest_api = OntapRestAPI(self.module)
         parameters = self.module.params
+        timeout_rest = 60 if parameters.get('rest_timeout') is None else parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         # set up state variables
         self.command = parameters['command']
         self.verb = parameters['verb']
