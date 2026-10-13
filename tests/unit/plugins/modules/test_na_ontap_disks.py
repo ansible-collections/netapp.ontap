@@ -801,6 +801,46 @@ def test_rest_unassign(mock_request, patch_ansible):      # pylint: disable=rede
     assert len(mock_request.mock_calls) == 6
 
 
+def test_min_spares_defaults_by_disk_type(patch_ansible):
+    ''' default min_spares is 1 for SSD types and 2 otherwise when the option is omitted '''
+    args = dict(default_args())
+    args['use_rest'] = 'never'
+    set_module_args(args)
+    assert my_module().parameters['min_spares'] == 2
+    for disk_type in ('SSD', 'SSD_NVM'):
+        args['disk_type'] = disk_type
+        set_module_args(args)
+        assert my_module().parameters['min_spares'] == 1
+
+
+def test_min_spares_honors_supplied_value(patch_ansible):
+    ''' a caller-supplied min_spares is not overwritten by the default '''
+    args = dict(default_args())
+    args['use_rest'] = 'never'
+    args['min_spares'] = 4
+    set_module_args(args)
+    assert my_module().parameters['min_spares'] == 4
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_min_spares_guard_uses_supplied_value(mock_request, patch_ansible):      # pylint: disable=redefined-outer-name,unused-argument
+    ''' min_spares limits how many spares may be removed and names the requested value '''
+    args = dict(default_args())
+    args['disk_count'] = 17    # 19 owned -> 2 disks must be unassigned
+    args['min_spares'] = 7     # node1 owns 8 spares -> unassigning 2 leaves 6, below 7
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['owned_disk_record'],
+        SRR['unassigned_disk_record'],
+        SRR['home_spare_disk_info_record'],
+        SRR['end_of_sequence']
+    ]
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module().apply()
+    assert exc.value.args[0]['msg'] == 'disk removal would leave less than 7 spares'
+
+
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_no_action(mock_request, patch_ansible):        # pylint: disable=redefined-outer-name,unused-argument
     ''' disk_count matches arguments, do nothing '''
