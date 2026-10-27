@@ -56,7 +56,7 @@ ZRR = zapi_responses({
 
 def test_module_fail_when_required_args_missing():
     # with python 2.6, dictionaries are not ordered
-    fragments = ["missing required arguments:", "hostname", "vserver", "database_type"]
+    fragments = ["missing required arguments:", "vserver", "database_type"]
     error = create_module(nss_module, {}, fail=True)['msg']
     for fragment in fragments:
         assert fragment in error
@@ -185,3 +185,39 @@ def test_if_all_methods_catch_exception_rest():
     nss_obj.svm_uuid = '6647fa13'
     assert 'Error fetching name service switch' in expect_and_capture_ansible_exception(nss_obj.get_name_service_switch, 'fail')['msg']
     assert 'Error on modifying name service switch' in expect_and_capture_ansible_exception(nss_obj.modify_name_service_switch_rest, 'fail')['msg']
+
+
+# GCNV related tests
+GCNV_DEFAULT_ARGS = {
+    'state': 'present',
+    'use_rest': 'always',
+    'vserver': 'test_vserver',
+    'database_type': 'namemap',
+    'sources': 'files,ldap',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(nss_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': '10.10.0.0',
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {'project_id': 'proj', 'location': 'us-central1-a', 'storage_pool': 'pool1', 'access_token': 'token'}
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(nss_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {'project_id': 'proj', 'location': 'us-central1-a', 'storage_pool': 'pool1', 'access_token': 'token'}
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(nss_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']

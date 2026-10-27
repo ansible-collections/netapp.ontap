@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "11d2c17ca6e2128ee25d52d73c5c28d4dddda79c12cd1b435f2e595014fe6157",
+   "chksum_sha256": "dc8d224b15d6014f251b9cfd27f65f04d7b68d77f9238a47282b2055c35180cb",
    "format": 1
   },
   {
@@ -4971,6 +4971,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8653.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "379964bbaf65e4f421bc9d2e96a98e8a63a62bcacd1399c17a180e807bf4b020",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5345,7 +5352,7 @@
    "name": "plugins/module_utils/netapp.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "9b7a5d437ae928a355c52e6d8b3060ba4e9b02c43683c5d012562a98ce2eb98e",
+   "chksum_sha256": "95a9bdf82199089905f42e5fdb4c8daec0ee55a3fa33fc9aef65245e689c7428",
    "format": 1
   },
   {
@@ -5688,7 +5695,7 @@
    "name": "plugins/modules/na_ontap_ems_destination.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "c6058fde98a722cd4c4f479423b797003f9f7c5fae69bca9c909e800d9b6a49b",
+   "chksum_sha256": "e066faf2b6fa03d83406966bab428cea4affc97c217102820d24279a228f7b4e",
    "format": 1
   },
   {
@@ -6024,7 +6031,7 @@
    "name": "plugins/modules/na_ontap_name_service_switch.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "ca158c28f09c47b7d5f5217f56ebbf033622c68e572ea4fd4fbd7d73fcc2a68b",
+   "chksum_sha256": "e477f70bd63b21a7ccabfd650c88d00640242dcec9a8ad025e4bf888cb60c7f5",
    "format": 1
   },
   {
@@ -7942,7 +7949,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_ems_destination.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "41f87802e0be6acb1b69c0d230a53ac2a09ce14067973d20d45feab71b531a9f",
+   "chksum_sha256": "3676077a001a4660f3887099c9904c813b1df0b8e177e4f90f4363ecfc28b357",
    "format": 1
   },
   {
@@ -8299,7 +8306,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_name_service_switch.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "01e95f7163c6b2de5bd38e9249107a257d0c534e367f88f1eb191294d0bef608",
+   "chksum_sha256": "e9eb0b3556270b4faac80145f0c36d79f7241e338d0f4f57dd1a096caa272369",
    "format": 1
   },
   {

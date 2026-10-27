@@ -1,5 +1,11 @@
 # Release Notes
 
+## 24.1.0
+
+### Major Changes
+  - na_ontap_ems_destination - GCNV support added to the module.
+  - na_ontap_name_service_switch - GCNV support added to the module.
+
 ## 24.0.0
 
 ### Major Changes

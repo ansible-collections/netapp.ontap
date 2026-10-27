@@ -1,0 +1,4 @@
+---
+major_changes:
+  - na_ontap_ems_destination - GCNV support added to the module.
+  - na_ontap_name_service_switch - GCNV support added to the module.

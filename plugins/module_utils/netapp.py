@@ -49,7 +49,7 @@ try:
 except ImportError:
     ANSIBLE_VERSION = 'unknown'
 
-COLLECTION_VERSION = "24.0.0"
+COLLECTION_VERSION = "24.1.0"
 CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)
 IMPORT_EXCEPTION = None
 
