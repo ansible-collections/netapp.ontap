@@ -69,7 +69,8 @@ SRR = rest_responses({
         "security_style": "unix",
         "unix_permissions": 755,
         "export_policy": {"name": "ansible"},
-        "volume": {"uuid": "uuid", "name": "volume1"}}
+        "volume": {"uuid": "uuid", "name": "volume1"},
+        "qos_policy": {"name": "qos_policy1"}},
     ]}, None),
     'job_info': (200, {
         "job": {
@@ -269,7 +270,7 @@ def test_successful_create_rest():
         ('GET', 'storage/qtrees', SRR['empty_records']),
         ('POST', 'storage/qtrees', SRR['success'])
     ])
-    assert create_and_apply(qtree_module, DEFAULT_ARGS, {'use_rest': 'always'})['changed']
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, {'use_rest': 'always', 'qos_policy': 'qos_policy1'})['changed']
 
 
 def test_idempotent_create_rest():
@@ -377,6 +378,7 @@ def test_successful_rename_and_modify_rest():
         'unix_permissions': '744',
         'unix_user': 'user',
         'unix_group': 'group',
+        'qos_policy': 'qos_policy2'
     }
     assert call_main(my_main, DEFAULT_ARGS, args)['changed']
 

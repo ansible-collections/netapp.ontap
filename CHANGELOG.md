@@ -6,6 +6,9 @@
   - na_ontap_ems_destination - GCNV support added to the module.
   - na_ontap_name_service_switch - GCNV support added to the module.
 
+### Minor Changes
+  - na_ontap_qtree - Added REST only option `qos_policy` and requires ONTAP 9.8 or later.
+
 ## 24.0.0
 
 ### Major Changes

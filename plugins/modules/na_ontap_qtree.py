@@ -143,6 +143,13 @@ options:
       - Default is set to 60 seconds.
     type: int
 
+  qos_policy:
+    description:
+      - The QoS policy group to be set on the qtree.
+      - Supported with REST and requires ONTAP 9.8 or later.
+    type: str
+    version_added: 25.0.0
+
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -227,6 +234,7 @@ EXAMPLES = """
     vserver: ansibleVServer
     unix_user: user1
     unix_group: group1
+    qos_policy: qosPolicyGroup
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -249,6 +257,7 @@ EXAMPLES = """
     flexvol_name: ansibleVolume
     vserver: ansibleVServer
     unix_permissions: sstrwxrwxrwx
+    qos_policy: qosPolicyGroup
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -310,6 +319,7 @@ class NetAppOntapQTree:
             unix_user=dict(required=False, type='str'),
             unix_group=dict(required=False, type='str'),
             rest_timeout=dict(required=False, type='int'),
+            qos_policy=dict(required=False, type='str'),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.volume_uuid, self.qid = None, None
@@ -330,7 +340,7 @@ class NetAppOntapQTree:
         timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
         self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['oplocks']
-        partially_supported_rest_properties = [['unix_user', (9, 9)], ['unix_group', (9, 9)]]
+        partially_supported_rest_properties = [['qos_policy', (9, 8)], ['unix_user', (9, 9)], ['unix_group', (9, 9)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if self.use_rest:
             if self.parameters.get('wait_for_completion') is None:
@@ -367,6 +377,8 @@ class NetAppOntapQTree:
                 query['fields'] += ',user.name'
             if 'unix_group' in self.parameters:
                 query['fields'] += ',group.name'
+            if 'qos_policy' in self.parameters and self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
+                query['fields'] += ',qos_policy.name'
             record, error = rest_generic.get_one_record(self.rest_api, api, query)
             if error:
                 msg = "Error fetching qtree: %s" % error
@@ -380,7 +392,8 @@ class NetAppOntapQTree:
                     'security_style': self.na_helper.safe_get(record, ['security_style']),
                     'unix_permissions': str(self.na_helper.safe_get(record, ['unix_permissions'])),
                     'unix_user': self.na_helper.safe_get(record, ['user', 'name']),
-                    'unix_group': self.na_helper.safe_get(record, ['group', 'name'])
+                    'unix_group': self.na_helper.safe_get(record, ['group', 'name']),
+                    'qos_policy': self.na_helper.safe_get(record, ['qos_policy', 'name'])
                 }
             return None
 
@@ -492,12 +505,12 @@ class NetAppOntapQTree:
                                       % (self.parameters['from_name'], to_native(error)),
                                       exception=traceback.format_exc())
 
-    def modify_qtree(self):
+    def modify_qtree(self, modify=None):
         """
         Modify a qtree
         """
         if self.use_rest:
-            body = self.form_create_modify_body_rest()
+            body = self.form_create_modify_body_rest(modify)
             api = "storage/qtrees/%s" % self.volume_uuid
             query = {'return_timeout': 0} if not self.parameters.get('wait_for_completion') else None
             timeout = 0 if not self.parameters.get('wait_for_completion') else self.parameters['time_out']
@@ -532,18 +545,21 @@ class NetAppOntapQTree:
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg=(error_message % (self.parameters['name'], to_native(error))), exception=traceback.format_exc())
 
-    def form_create_modify_body_rest(self):
+    def form_create_modify_body_rest(self, modify=None):
         body = {'name': self.parameters['name']}
-        if self.parameters.get('security_style'):
-            body['security_style'] = self.parameters['security_style']
-        if self.parameters.get('unix_permissions'):
-            body['unix_permissions'] = self.parameters['unix_permissions']
-        if self.parameters.get('export_policy'):
-            body['export_policy'] = {'name': self.parameters['export_policy']}
-        if self.parameters.get('unix_user'):
-            body['user'] = {'name': self.parameters['unix_user']}
-        if self.parameters.get('unix_group'):
-            body['group'] = {'name': self.parameters['unix_group']}
+        params = self.parameters if modify is None else modify
+        if 'security_style' in params:
+            body['security_style'] = params['security_style']
+        if 'unix_permissions' in params:
+            body['unix_permissions'] = params['unix_permissions']
+        if 'export_policy' in params:
+            body['export_policy'] = {'name': params['export_policy']}
+        if 'unix_user' in params:
+            body['user'] = {'name': params['unix_user']}
+        if 'unix_group' in params:
+            body['group'] = {'name': params['unix_group']}
+        if 'qos_policy' in params:
+            body['qos_policy'] = {'name': params['qos_policy']}
         return body
 
     def apply(self):
@@ -579,7 +595,7 @@ class NetAppOntapQTree:
                 if rename:
                     self.rename_qtree()
                 if modify:
-                    self.modify_qtree()
+                    self.modify_qtree(modify)
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
 
