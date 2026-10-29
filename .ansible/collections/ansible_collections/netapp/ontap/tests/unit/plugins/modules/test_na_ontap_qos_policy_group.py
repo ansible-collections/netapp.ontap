@@ -610,3 +610,70 @@ def test_get_policy_error_rest():
     ])
     error = create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST, fail=True)['msg']
     assert 'Error fetching qos policy group policy_1' in error
+
+
+GCNV_DEFAULT_ARGS = {
+    'name': 'policy_1',
+    'vserver': 'policy_vserver',
+    'https': 'True',
+    'use_rest': 'always',
+    'fixed_qos_options': {
+        'capacity_shared': False,
+        'max_throughput_iops': 1000,
+        'max_throughput_mbps': 100
+    }
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(qos_policy_group_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': "10.10.0.0",
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(qos_policy_group_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(qos_policy_group_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_success_with_google_netapp_unified_pool_alias():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/qos/policies', SRR['empty_records']),
+        ('POST', 'storage/qos/policies', SRR['success'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'google_netapp_unified_pool': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    assert create_and_apply(qos_policy_group_module, GCNV_DEFAULT_ARGS, module_args)['changed']

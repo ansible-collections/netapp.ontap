@@ -1,0 +1,6 @@
+---
+major_changes:
+  - na_ontap_job_schedule - GCNV support added to the module.
+  - na_ontap_nfs - GCNV support added to the module.
+  - na_ontap_qos_policy_group - GCNV support added to the module.
+  - na_ontap_snapmirror_policy - GCNV support added to the module.

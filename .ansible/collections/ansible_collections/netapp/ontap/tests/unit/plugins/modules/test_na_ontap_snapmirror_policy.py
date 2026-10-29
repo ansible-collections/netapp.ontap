@@ -1,4 +1,4 @@
-# (c) 2019-2023, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_snapmirror_policy '''
@@ -1282,3 +1282,66 @@ def test_modify_snapmirror_policy_rules_rest():
     }
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     assert my_obj.modify_snapmirror_policy_rules_rest('uuid', [], ['umod'], [], []) is None
+
+
+GCNV_DEFAULT_ARGS = {
+    'use_rest': 'use_rest',
+    'policy_name': 'ansible',
+    'vserver': 'ansible',
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': "10.10.0.0",
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(my_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_success_with_google_netapp_unified_pool_alias():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
+        ('GET', 'snapmirror/policies', SRR['zero_records']),
+        ('POST', 'snapmirror/policies', SRR['success']),
+        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'google_netapp_unified_pool': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    assert create_and_apply(my_module, GCNV_DEFAULT_ARGS, module_args)['changed']

@@ -94,7 +94,7 @@ def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors
         with python 2.6, dictionaries are not ordered
     '''
-    fragments = ["missing required arguments:", "hostname", "name"]
+    fragments = ["missing required arguments:", "name"]
     error = create_module(job_module, {}, fail=True)['msg']
     for fragment in fragments:
         assert fragment in error
@@ -547,3 +547,66 @@ def test_rest_modify_interval_schedule():
         ('PATCH', 'cluster/schedules/11e9-9f70-005056b3df08', SRR['get_interval_schedule_modified']),
     ])
     assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
+
+
+GCNV_DEFAULT_ARGS = {
+    'name': 'test_job',
+    'job_minutes': [25],
+    'job_hours': [0],
+    'job_days_of_week': [0],
+    'use_rest': 'always'
+}
+
+
+def test_module_fail_when_no_hostname_and_no_gcnv():
+    module_args = {'hostname': None}
+    msg = 'Error: hostname is required when gcnv is not configured.'
+    assert msg == create_module(job_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_and_use_lambda_and_hostname():
+    module_args = {
+        'hostname': "10.10.0.0",
+        'use_lambda': True,
+        'lambda_config': {'function_name': 'test_fn', 'aws_region': 'us-east-1'},
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'parameters are mutually exclusive: use_lambda|gcnv, gcnv|hostname'
+    assert msg == create_module(job_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_fail_when_gcnv_use_rest_not_always():
+    module_args = {
+        'use_rest': 'never',
+        'gcnv': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    msg = 'Error: Google Cloud NetApp Volumes (gcnv) requires REST. Found use_rest: never.'
+    assert msg == create_module(job_module, GCNV_DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_success_with_google_netapp_unified_pool_alias():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['zero_records']),
+        ('POST', 'cluster/schedules', SRR['success'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'google_netapp_unified_pool': {
+            'project_id': 'proj',
+            'location': 'us-central1-a',
+            'storage_pool': 'pool1',
+            'access_token': 'token'
+        }
+    }
+    assert create_and_apply(job_module, GCNV_DEFAULT_ARGS, module_args)['changed']

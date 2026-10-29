@@ -5,6 +5,10 @@
 ### Major Changes
   - na_ontap_ems_destination - GCNV support added to the module.
   - na_ontap_name_service_switch - GCNV support added to the module.
+  - na_ontap_job_schedule - GCNV support added to the module.
+  - na_ontap_nfs - GCNV support added to the module.
+  - na_ontap_qos_policy_group - GCNV support added to the module.
+  - na_ontap_snapmirror_policy - GCNV support added to the module.
 
 ### Minor Changes
   - na_ontap_qtree - Added REST only option `qos_policy` and requires ONTAP 9.8 or later.
@@ -12,8 +16,6 @@
 
 ### Bug Fixes
   - na_ontap_service_processor_network - Fixed issue with modify when `is_enabled` is not set.
-
-### Bug Fixes
   - na_ontap_broadcast_domain - fixed error for missing mtu for create operation.
 
 ## 24.0.0
