@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -18,8 +18,8 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain \
     import NetAppOntapBroadcastDomain as broadcast_domain_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
@@ -119,6 +119,7 @@ class TestMyModule(unittest.TestCase):
             broadcast_domain_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_get_nonexistent_net_route(self):
         ''' Test if get_broadcast_domain returns None for non-existent broadcast_domain '''
         set_module_args(self.mock_args())
@@ -135,6 +136,7 @@ class TestMyModule(unittest.TestCase):
         msg = 'missing required arguments: name'
         assert exc.value.args[0]['msg'] == msg
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.create_broadcast_domain')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
     def test_successful_create(self, get_broadcast_domain, create_broadcast_domain):
@@ -147,6 +149,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         create_broadcast_domain.assert_called_with(None)
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_create_idempotency(self):
         ''' Test create idempotency '''
         set_module_args(self.mock_args())
@@ -155,6 +158,7 @@ class TestMyModule(unittest.TestCase):
             obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.create_broadcast_domain')
     def test_create_idempotency_identical_ports(self, create_broadcast_domain):
         ''' Test create idemptency identical ports '''
@@ -165,6 +169,7 @@ class TestMyModule(unittest.TestCase):
             self.get_broadcast_domain_mock_object('broadcast_domain').apply()
         assert not exc.value.args[0]['changed']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_modify_mtu(self):
         ''' Test successful modify mtu '''
         data = self.mock_args()
@@ -175,6 +180,7 @@ class TestMyModule(unittest.TestCase):
             self.get_broadcast_domain_mock_object('broadcast_domain').apply()
         assert exc.value.args[0]['changed']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_modify_ipspace_idempotency(self):
         ''' Test modify ipsapce idempotency'''
         data = self.mock_args()
@@ -184,6 +190,7 @@ class TestMyModule(unittest.TestCase):
             self.get_broadcast_domain_mock_object('broadcast_domain').apply()
         assert not exc.value.args[0]['changed']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.add_broadcast_domain_ports')
     def test_add_ports(self, add_broadcast_domain_ports):
         ''' Test successful modify ports '''
@@ -195,6 +202,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         add_broadcast_domain_ports.assert_called_with(['test_port_2'])
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.delete_broadcast_domain_ports')
     def test_delete_ports(self, delete_broadcast_domain_ports):
         ''' Test successful modify ports '''
@@ -206,6 +214,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         delete_broadcast_domain_ports.assert_called_with(['test_port_1'])
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.modify_broadcast_domain')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.split_broadcast_domain')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
@@ -232,6 +241,7 @@ class TestMyModule(unittest.TestCase):
         modify_broadcast_domain.assert_not_called()
         split_broadcast_domain.assert_called_with()
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.delete_broadcast_domain')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.modify_broadcast_domain')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
@@ -259,6 +269,7 @@ class TestMyModule(unittest.TestCase):
         delete_broadcast_domain.assert_called_with('test_broadcast_domain')
         modify_broadcast_domain.assert_called_with()
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
     def test_split_broadcast_domain_not_exist(self, get_broadcast_domain):
         ''' Test split broadcast domain does not exist '''
@@ -277,6 +288,7 @@ class TestMyModule(unittest.TestCase):
         msg = 'A domain cannot be split if it does not exist.'
         assert exc.value.args[0]['msg'], msg
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.split_broadcast_domain')
     def test_split_broadcast_domain_idempotency(self, split_broadcast_domain):
         ''' Test successful split broadcast domain '''
@@ -289,6 +301,7 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
         split_broadcast_domain.assert_not_called()
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.delete_broadcast_domain')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
     def test_delete_broadcast_domain(self, get_broadcast_domain, delete_broadcast_domain):
@@ -308,6 +321,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         delete_broadcast_domain.assert_called_with(current=current)
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.delete_broadcast_domain')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
     def test_delete_broadcast_domain_idempotent(self, get_broadcast_domain, delete_broadcast_domain):
@@ -321,6 +335,7 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
         delete_broadcast_domain.assert_not_called()
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.delete_broadcast_domain')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
     def test_delete_broadcast_domain_if_all_ports_are_removed(self, get_broadcast_domain, delete_broadcast_domain):
@@ -688,7 +703,7 @@ def test_delete_broadcast_domain(mock_request, patch_ansible):
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_module_try_to_bad_format_port(mock_request, patch_ansible):
-    ''' test delete broadcast domain mtu '''
+    ''' test error for bad format of port '''
     args = dict(default_args())
     args['name'] = "domain1"
     args['ipspace'] = "ip1"
@@ -708,7 +723,7 @@ def test_module_try_to_bad_format_port(mock_request, patch_ansible):
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_module_try_to_create_domain_without_ipspace(mock_request, patch_ansible):
-    ''' test delete broadcast domain mtu '''
+    ''' test error for missing ipspace '''
     args = dict(default_args())
     args['name'] = "domain1"
     args['mtu'] = 1500
@@ -722,6 +737,27 @@ def test_module_try_to_create_domain_without_ipspace(mock_request, patch_ansible
         my_obj = broadcast_domain_module()
     print('Info: %s' % exc.value.args[0])
     msg = "Error: ipspace space is a required option with REST"
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_try_to_create_domain_without_mtu(mock_request, patch_ansible):
+    ''' test error for missing mtu for create operation '''
+    args = dict(default_args())
+    args['name'] = "domain1"
+    args['ipspace'] = "ip1"
+    args['state'] = "present"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['zero_record'],                # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    msg = "Error: mtu is required when creating a broadcast domain with REST"
     assert msg in exc.value.args[0]['msg']
 
 

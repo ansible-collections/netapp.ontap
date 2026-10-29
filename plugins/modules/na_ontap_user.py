@@ -186,6 +186,11 @@ options:
     choices: ['always', 'auto']
     default: 'auto'
     version_added: '20.6.0'
+  comment:
+    description:
+      - Additional information for the user account. Only supported with REST.
+    type: str
+    version_added: '24.1.0'
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -332,7 +337,8 @@ class NetAppOntapUser:
             privacy_protocol=dict(type='str', choices=['none', 'des', 'aes128']),
             privacy_password=dict(type='str', no_log=True),
             remote_switch_ipaddress=dict(type='str'),
-            replace_existing_apps_and_methods=dict(type='str', choices=['always', 'auto'], default='auto')
+            replace_existing_apps_and_methods=dict(type='str', choices=['always', 'auto'], default='auto'),
+            comment=dict(type='str'),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
@@ -365,6 +371,8 @@ class NetAppOntapUser:
                 self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if self.parameters.get('vserver') is None:
                 self.module.fail_json(msg="Error: vserver is required with ZAPI")
+            if self.parameters.get('comment') is not None:
+                self.module.fail_json(msg="Error: comment is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
@@ -436,7 +444,7 @@ class NetAppOntapUser:
 
     def get_user_details_rest(self, name, owner_uuid):
         query = {
-            'fields': 'role,applications,locked'
+            'fields': 'role,applications,locked,comment'
         }
         api = "security/accounts/%s/%s" % (owner_uuid, name)
         response, error = self.rest_api.get(api, query)
@@ -452,7 +460,8 @@ class NetAppOntapUser:
                 application.pop('is_ns_switch_group', None)
             return_value = {
                 'role_name': response['role']['name'],
-                'applications': response['applications']
+                'applications': response['applications'],
+                'comment': response.get('comment')
             }
             if "locked" in response:
                 return_value['lock_user'] = response['locked']
@@ -532,6 +541,8 @@ class NetAppOntapUser:
             body['password'] = self.parameters['set_password']
         if 'lock_user' in self.parameters:
             body['locked'] = self.parameters['lock_user']
+        if 'comment' in self.parameters:
+            body['comment'] = self.parameters['comment']
         dummy, error = self.rest_api.post(api, body)
         if (
             error
@@ -722,7 +733,8 @@ class NetAppOntapUser:
     def modify_apps_rest(self, owner_uuid, username, apps=None):
         body = {
             'role.name': self.parameters['role_name'],
-            'applications': self.na_helper.filter_out_none_entries(apps)
+            'applications': self.na_helper.filter_out_none_entries(apps),
+            'comment': self.parameters.get('comment')
         }
         error = self.patch_account(owner_uuid, username, body)
         if error:
@@ -839,7 +851,7 @@ class NetAppOntapUser:
                 for application in current['applications']:
                     self.delete_user(application)
         elif modify:
-            if 'role_name' in modify or 'applications' in modify:
+            if 'role_name' in modify or 'applications' in modify or 'comment' in modify:
                 if self.use_rest:
                     self.modify_apps_rest(owner_uuid, name, self.parameters['applications'])
                 else:

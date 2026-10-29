@@ -3,6 +3,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -12,12 +13,15 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, \
-    register_responses
+    register_responses, get_mock_record
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_service_processor_network \
     import NetAppOntapServiceProcessorNetwork as sp_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 
 def mock_args(enable=False, use_rest=False):
@@ -97,6 +101,7 @@ def test_module_fail_when_required_args_missing():
         assert fragment in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_error_on_disabled_sp():
     ''' test that modifying disabled SP succeeds but ignores IP params '''
     register_responses([
@@ -108,6 +113,7 @@ def test_modify_error_on_disabled_sp():
     assert result['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_error_on_disabe_dhcp_without_ip():
     ''' a more interesting test '''
     register_responses([
@@ -117,6 +123,7 @@ def test_modify_error_on_disabe_dhcp_without_ip():
     assert error in create_and_apply(sp_module, mock_args(enable=True), None, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_error_of_params_disabled_false():
     ''' test that modifying with is_enabled=false ignores other params '''
     register_responses([
@@ -128,6 +135,7 @@ def test_modify_error_of_params_disabled_false():
     assert result['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_sp():
     ''' a more interesting test '''
     register_responses([
@@ -137,6 +145,7 @@ def test_modify_sp():
     assert create_and_apply(sp_module, mock_args(enable=True), {'ip_address': '3.3.3.3'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_modify_sp_wait(sleep):
     ''' a more interesting test '''
@@ -149,6 +158,7 @@ def test_modify_sp_wait(sleep):
     assert create_and_apply(sp_module, mock_args(enable=True), args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_non_existing_sp():
     register_responses([
         ('service-processor-network-get-iter', ZRR['no_records'])
@@ -157,6 +167,7 @@ def test_non_existing_sp():
     assert create_and_apply(sp_module, mock_args(), fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_wait_on_sp_status(sleep):
     register_responses([
@@ -168,6 +179,7 @@ def test_wait_on_sp_status(sleep):
     assert create_and_apply(sp_module, mock_args(enable=True), args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     ''' test error zapi - get/modify'''
     register_responses([
@@ -314,3 +326,23 @@ def test_enable_sp_rest_ip(sleep):
     ])
     args = {'ip_address': '1.1.1.1', 'is_enabled': True, 'netmask': '255.255.255.0'}
     assert create_and_apply(sp_module, mock_args(enable=True, use_rest=True), args)['changed']
+
+
+def test_modify_sp_rest_enabled_implicit():
+    ''' ip params without is_enabled set enabled in REST PATCH body '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'cluster/nodes', SRR['sp_enabled_info']),
+        ('GET', 'cluster/nodes', SRR['sp_enabled_info']),  # for other interface config
+        ('PATCH', 'cluster/nodes/5dd7aed0', SRR['success'])
+    ])
+    args = {'ip_address': '1.1.1.2', 'gateway_ip_address': '2.2.2.2', 'netmask': '255.255.248.0'}
+    base = {k: v for k, v in mock_args(use_rest=True).items() if k != 'is_enabled'}
+    assert create_and_apply(sp_module, base, args)['changed']
+    assert get_mock_record().is_record_in_json(
+        {'service_processor': {
+            'ipv4_interface': {'enabled': True, 'address': '1.1.1.2', 'gateway': '2.2.2.2', 'netmask': '255.255.248.0'},
+            'ipv6_interface': {'enabled': False}
+        }},
+        'PATCH', 'cluster/nodes/5dd7aed0'
+    )

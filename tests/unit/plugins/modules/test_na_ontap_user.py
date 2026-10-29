@@ -38,7 +38,8 @@ SRR = rest_responses({
     'get_user_details_rest': (200,
                               {'role': {'name': 'vsadmin'},
                                'applications': [{'application': 'http'}],
-                               'locked': False}, None),
+                               'locked': False,
+                               'comment': 'comment'}, None),
     'get_user_details_rest_no_pwd': (200,       # locked is absent if no password was set
                                      {'role': {'name': 'vsadmin'},
                                       'applications': [{'application': 'http'}],
@@ -453,7 +454,8 @@ def test_ensure_create_user_rest_called():
         'applications': ['http', 'ontapi'],
         'authentication_method': 'password',
         'set_password': 'xfjjttjwll`1',
-        'lock_user': True
+        'lock_user': True,
+        'comment': 'test comment'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
@@ -508,6 +510,7 @@ def test_ensure_modify_user_rest_called():
         'role_name': 'vsadmin',
         'application': 'ssh',
         'authentication_method': 'password',
+        'comment': 'test comment'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
