@@ -21,6 +21,13 @@ description:
     - Creating / deleting and modifying the CIFS server .
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
 
   state:
     description:
@@ -348,6 +355,7 @@ class NetAppOntapcifsServer:
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             service_state=dict(required=False, choices=['stopped', 'started']),
             name=dict(required=True, type='str', aliases=['cifs_server_name']),
@@ -393,7 +401,8 @@ class NetAppOntapcifsServer:
 
         self.parameters['cifs_server_name'] = self.parameters['name']
         # Set up Rest API
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['workgroup']
         partially_supported_rest_properties = [['encrypt_dc_connection', (9, 8)], ['lm_compatibility_level', (9, 8)],
                                                ['aes_netlogon_enabled', (9, 10, 1)], ['ldap_referral_enabled', (9, 10, 1)], ['session_security', (9, 10, 1)],

@@ -29,6 +29,12 @@ description:
     - Create/Delete FCP WWPN Alias
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   state:
     description:
     - Whether the specified alias should exist or not.
@@ -92,6 +98,7 @@ class NetAppOntapWwpnAlias(object):
 
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, choices=[
                 'present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
@@ -108,7 +115,8 @@ class NetAppOntapWwpnAlias(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # REST API should be used for ONTAP 9.6 or higher.
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         if self.rest_api.is_rest():
             self.use_rest = True
         else:

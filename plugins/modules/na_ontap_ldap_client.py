@@ -23,6 +23,13 @@ description:
   - Create, modify or delete LDAP client configuration for a data SVM on NetApp ONTAP.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
 
   state:
     description:
@@ -286,6 +293,7 @@ class NetAppOntapLDAPClient:
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             ad_domain=dict(required=False, default=None, type='str'),
             base_dn=dict(required=False, type='str'),
             base_scope=dict(required=False, default=None, choices=['subtree', 'onelevel', 'base']),
@@ -330,7 +338,8 @@ class NetAppOntapLDAPClient:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         # Set up Rest API
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['name']
         partially_supported_rest_properties = [['bind_as_cifs_server', (9, 9, 0)], ['query_timeout', (9, 9, 0)], ['referral_enabled', (9, 9, 0)],
                                                ['ldaps_enabled', (9, 9, 0)], ['skip_config_validation', (9, 9, 0)],

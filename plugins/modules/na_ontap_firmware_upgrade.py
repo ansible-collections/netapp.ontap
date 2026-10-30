@@ -20,6 +20,13 @@ extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_firmware_upgrade
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Whether the specified ONTAP firmware should be upgraded or not.
@@ -308,6 +315,7 @@ class NetAppONTAPFirmwareUpgrade:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', default='present'),
             node=dict(required=False, type='str'),
             firmware_type=dict(type='str', choices=['storage', 'service-processor', 'shelf', 'acp', 'disk'], default='storage'),
@@ -346,7 +354,8 @@ class NetAppONTAPFirmwareUpgrade:
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self._node_uuid = None       # to cache calls to get_node_uuid
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['package', 'update_type', 'rename_package', 'shelf_module_fw', 'disk_fw']
         # only accept default value for these 5 options (2 True and 3 False)
         # accept the default value (for replace_package, this is implicit for REST) but switch to ZAPI or error out if set to False

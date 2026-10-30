@@ -17,6 +17,13 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Enable or disable NFS on ONTAP
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Whether NFS should exist or not.
@@ -484,6 +491,7 @@ class NetAppONTAPNFS:
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             service_state=dict(required=False, type='str', choices=['started', 'stopped']),
             vserver=dict(required=True, type='str'),
@@ -585,7 +593,8 @@ class NetAppONTAPNFS:
             'tcp_max_xfer_size': 'tcp-max-xfer-size'
         }
 
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['nfsv4_numeric_ids']
         partially_supported_rest_properties = [['showmount', (9, 8)], ['root', (9, 11, 0)], ['windows', (9, 11, 0)], ['security', (9, 11, 0)],
                                                ['tcp_max_xfer_size', (9, 11, 0)], ['nfsv3_hide_snapdir', (9, 13, 1)], ['nfsv3_fsid_change', (9, 11, 0)],

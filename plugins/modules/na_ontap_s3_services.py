@@ -19,6 +19,12 @@ description:
 - Create, delete or modify S3 Service
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   state:
     description:
     - Whether the specified S3 bucket should exist or not.
@@ -183,6 +189,7 @@ class NetAppOntapS3Services:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             enabled=dict(required=False, type='bool'),
@@ -206,7 +213,8 @@ class NetAppOntapS3Services:
         self.svm_uuid = None
         self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_services', 9, 8)
 

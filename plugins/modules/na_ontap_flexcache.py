@@ -26,6 +26,13 @@ extends_documentation_fragment:
 module: na_ontap_flexcache
 version_added: 2.8.0
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     choices: ['present', 'absent']
     description:
@@ -290,6 +297,7 @@ class NetAppONTAPFlexCache:
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'],
                        default='present'),
             origin_volume=dict(required=False, type='str'),                     # origins[0]
@@ -351,7 +359,8 @@ class NetAppONTAPFlexCache:
         # setup later if required
         self.origin_server = None
 
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         partially_supported_rest_properties = [['guarantee_type', (9, 7)], ['prepopulate', (9, 8)],
                                                ['global_file_locking_enabled', (9, 9)], ['dr_cache', (9, 9)],
                                                ['writeback', (9, 12)], ['relative_size', (9, 13, 1)],

@@ -33,6 +33,13 @@ description:
 - This can be done through na_ontap_disk_options or via the cli "disk option modify -node <node_name> -autoassign off".
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   node:
     required: true
     type: str
@@ -102,6 +109,7 @@ class NetAppOntapPartitions():
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             node=dict(required=True, type='str'),
             partition_count=dict(required=True, type='int'),
             disk_type=dict(required=True, type='str', choices=['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'SSD_NVM', 'VMDISK', 'unknown']),
@@ -125,7 +133,8 @@ class NetAppOntapPartitions():
             else:
                 self.parameters['min_spares'] = 2
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:

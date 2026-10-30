@@ -23,6 +23,13 @@ description:
   - Create, delete, or manage aggregates on ONTAP.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
 
   state:
     description:
@@ -360,6 +367,7 @@ class NetAppOntapAggregate:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             name=dict(required=True, type='str'),
             disks=dict(required=False, type='list', elements='str'),
             disk_count=dict(required=False, type='int', default=None),
@@ -408,7 +416,8 @@ class NetAppOntapAggregate:
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         self.uuid = None
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['disks', 'disk_type', 'mirror_disks', 'spare_pool', 'unmount_volumes']
