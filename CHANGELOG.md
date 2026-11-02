@@ -18,6 +18,7 @@
 ### Bug Fixes
   - na_ontap_service_processor_network - Fixed issue with modify when `is_enabled` is not set.
   - na_ontap_broadcast_domain - fixed error for missing mtu for create operation.
+  - na_ontap_service_processor_network - Fixed issue with changing Service Processor IPv4 address when IPv6 is disabled.
 
 ## 24.0.0
 

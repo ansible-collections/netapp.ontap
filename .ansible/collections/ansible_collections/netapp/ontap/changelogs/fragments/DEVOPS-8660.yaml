@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - na_ontap_service_processor_network - Fixed issue with changing Service Processor IPv4 address when IPv6 is disabled.

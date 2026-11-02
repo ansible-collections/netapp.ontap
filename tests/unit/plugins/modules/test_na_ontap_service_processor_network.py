@@ -342,7 +342,7 @@ def test_modify_sp_rest_enabled_implicit():
     assert get_mock_record().is_record_in_json(
         {'service_processor': {
             'ipv4_interface': {'enabled': True, 'address': '1.1.1.2', 'gateway': '2.2.2.2', 'netmask': '255.255.248.0'},
-            'ipv6_interface': {'enabled': False}
+            'dhcp_enabled': False
         }},
         'PATCH', 'cluster/nodes/5dd7aed0'
     )

@@ -448,9 +448,11 @@ class NetAppOntapServiceProcessorNetwork:
         if target_enabled is None and any(self.parameters.get(k) for k in ['ip_address', 'gateway_ip_address', 'netmask', 'prefix_length']):
             target_enabled = True
         address_type = self.parameters['address_type']
+        # get_service_processor_network_rest() for the other interface overwrites self.ipv4_or_ipv6.
+        current_interface = self.ipv4_or_ipv6
 
         body = {'service_processor': {
-            self.ipv4_or_ipv6: self.get_interface_config(target_enabled)
+            current_interface: self.get_interface_config(target_enabled)
         }}
 
         # Handling other interface
@@ -462,18 +464,18 @@ class NetAppOntapServiceProcessorNetwork:
         self.parameters['address_type'] = original_type
 
         other_interface_config = self.get_other_interface_config(other_config, target_enabled is False)
-        body['service_processor'][other_interface] = {k: v for k, v in other_interface_config.items() if v is not None}
+        if other_interface_config.get('enabled'):
+            body['service_processor'][other_interface] = {k: v for k, v in other_interface_config.items() if v is not None}
 
         # Set DHCP
         if 'dhcp' in self.parameters:
             body['service_processor']['dhcp_enabled'] = True if self.parameters['dhcp'] == 'v4' else False
         # if dhcp is enabled in REST, setting ip_address details manually requires dhcp: 'none' in params.
         # if dhcp: 'none' is not in params set it False to disable dhcp and assign manual ip address.
-        elif (body['service_processor'][self.ipv4_or_ipv6].get('gateway') and
-              body['service_processor'][self.ipv4_or_ipv6].get('address') and
-              body['service_processor'][self.ipv4_or_ipv6].get('netmask')):
+        elif (body['service_processor'][current_interface].get('gateway') and
+              body['service_processor'][current_interface].get('address') and
+              body['service_processor'][current_interface].get('netmask')):
             body['service_processor']['dhcp_enabled'] = False
-
         dummy, error = rest_generic.patch_async(self.rest_api, 'cluster/nodes', self.uuid, body)
         if error:
             self.module.fail_json(msg='Error modifying service processor network: %s' % error)
