@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "594bc6268955e859acbbb24e71eca609ec5a70a8e80341bbf0a62313c124bbf9",
+   "chksum_sha256": "0ecb4d191716f77556c9e4d6d7536148c5db337f72f919976086f61d1da2128e",
    "format": 1
   },
   {
@@ -4999,6 +4999,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8661.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "3ec6109b1dfe9e04f62b419ebddfaec64096ce0f64aaf647198ee82104ba4ad0",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -6318,7 +6325,7 @@
    "name": "plugins/modules/na_ontap_security_ipsec_ca_certificate.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "d1bc7c2d26eb7c292471476b9fbfa2dce41f288135efc207be3223fa1094a848",
+   "chksum_sha256": "7366e09144971a14251a83f4d6705455ad926dbe84b4d42c29577ff7bd88660c",
    "format": 1
   },
   {

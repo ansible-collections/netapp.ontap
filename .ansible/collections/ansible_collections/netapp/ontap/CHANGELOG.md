@@ -9,6 +9,7 @@
   - na_ontap_nfs - GCNV support added to the module.
   - na_ontap_qos_policy_group - GCNV support added to the module.
   - na_ontap_snapmirror_policy - GCNV support added to the module.
+  - na_ontap_security_ipsec_ca_certificate - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_qtree - Added REST only option `qos_policy` and requires ONTAP 9.8 or later.
