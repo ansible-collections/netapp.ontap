@@ -22,6 +22,13 @@ description:
   - Create, modify or delete vserver kerberos realm configuration
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
 
   state:
     description:
@@ -202,6 +209,7 @@ class NetAppOntapKerberosRealm:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             admin_server_ip=dict(required=False, type='str'),
             admin_server_port=dict(required=False, type='str'),
             clock_skew=dict(required=False, type='str'),
@@ -232,7 +240,8 @@ class NetAppOntapKerberosRealm:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         # Set up Rest API
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         partially_supported_rest_properties = [['admin_server_ip', (9, 13, 1)], ['admin_server_port', (9, 13, 1)], ['clock_skew', (9, 13, 1)],
                                                ['pw_server_ip', (9, 13, 1)], ['pw_server_port', (9, 13, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)

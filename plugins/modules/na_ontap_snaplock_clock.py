@@ -20,6 +20,12 @@ description:
   - Sets the Snaplock compliance clock on NetApp ONTAP.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   node:
     description:
       - Name of the node to set compliance clock on.
@@ -82,6 +88,7 @@ class NetAppOntapSnaplockClock:
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             node=dict(required=True, type='str'),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
@@ -95,7 +102,8 @@ class NetAppOntapSnaplockClock:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:

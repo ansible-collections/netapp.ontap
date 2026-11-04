@@ -24,6 +24,13 @@ description:
   - Adding a node requires ONTAP 9.3 or better.
   - Removing a node requires ONTAP 9.4 or better.
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Whether the specified cluster should exist (deleting a cluster is not supported).
@@ -205,6 +212,7 @@ class NetAppONTAPCluster:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             cluster_name=dict(required=False, type='str'),
             cluster_ip_address=dict(required=False, type='str'),
@@ -233,7 +241,8 @@ class NetAppONTAPCluster:
         # cached, so that we don't call the REST API more than once
         self.node_records = None
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         partially_supported_rest_properties = [['certificate', (9, 10, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
 

@@ -27,6 +27,12 @@ module: na_ontap_restit
 short_description: NetApp ONTAP Run any REST API on ONTAP
 version_added: "20.4.0"
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   api:
     description:
       - The REST API to call (eg I(cluster/software), I(svms/svm)).
@@ -360,6 +366,7 @@ class NetAppONTAPRestAPI(object):
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             api=dict(required=True, type='str'),
             method=dict(required=False, type='str', default='GET'),
             query=dict(required=False, type='dict'),
@@ -398,7 +405,8 @@ class NetAppONTAPRestAPI(object):
         self.files = parameters['files']
         self.accept_header = parameters['accept_header']
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if parameters.get('rest_timeout') is None else parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
 
         if self.accept_header is None:
             self.accept_header = 'application/hal+json' if self.hal_linking else 'application/json'

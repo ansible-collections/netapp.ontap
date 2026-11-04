@@ -23,6 +23,13 @@ description:
 - Modify VLAN are supported only with REST
 - broadcast_domain, ipspace and enabled keys are supported with REST and is ignored with ZAPI
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
     - Whether the specified network VLAN should exist or not
@@ -139,6 +146,7 @@ class NetAppOntapVlan:
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             parent_interface=dict(required=True, type='str'),
             vlanid=dict(required=True, type='int'),
@@ -161,7 +169,8 @@ class NetAppOntapVlan:
         self.parameters['interface_name'] = "%s-%s" % (self.parameters['parent_interface'], self.parameters['vlanid'])
 
         # Set up Rest API
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
 
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):

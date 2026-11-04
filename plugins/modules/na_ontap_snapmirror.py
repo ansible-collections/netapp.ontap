@@ -28,6 +28,12 @@ extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap_peer
 module: na_ontap_snapmirror
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   state:
     choices: ['present', 'absent']
     description:
@@ -581,6 +587,7 @@ class NetAppONTAPSnapmirror(object):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             destination_endpoint=dict(type='dict', options=dict(
                 cluster=dict(type='str'),
@@ -721,7 +728,8 @@ class NetAppONTAPSnapmirror(object):
     def setup_rest(self):
         unsupported_rest_properties = ['identity_preserve', 'max_transfer_rate']
         host_options = self.parameters['peer_options'] if self.parameters.get('connection_type') == 'ontap_elementsw' else None
-        rest_api = netapp_utils.OntapRestAPI(self.module, host_options=host_options)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        rest_api = netapp_utils.OntapRestAPI(self.module, host_options=host_options, timeout=timeout_rest)
         rtype = self.parameters.get('relationship_type')
         if rtype not in (None, 'extended_data_protection', 'restore'):
             unsupported_rest_properties.append('relationship_type')
@@ -963,7 +971,8 @@ class NetAppONTAPSnapmirror(object):
         Setup ontap ZAPI or REST server connection for source hostname
         :return: None
         """
-        self.src_rest_api = netapp_utils.OntapRestAPI(self.module, host_options=self.parameters['peer_options'])
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.src_rest_api = netapp_utils.OntapRestAPI(self.module, host_options=self.parameters['peer_options'], timeout=timeout_rest)
         unsupported_rest_properties = ['identity_preserve', 'max_transfer_rate', 'schedule']
         rtype = self.parameters.get('relationship_type')
         if rtype not in (None, 'extended_data_protection', 'restore'):

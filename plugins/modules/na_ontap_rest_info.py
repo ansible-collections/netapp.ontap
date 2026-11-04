@@ -39,6 +39,13 @@ notes:
   - Supports GCNV ONTAP-mode REST passthrough when C(gcnv) is provided. See README for example usage.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     type: str
     description:
@@ -546,6 +553,7 @@ class NetAppONTAPGatherInfo(object):
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(type='str', required=False),
             gather_subset=dict(default=['demo'], type='list', elements='str', required=False),
             max_records=dict(type='int', default=1024, required=False),
@@ -575,7 +583,8 @@ class NetAppONTAPGatherInfo(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.fields = ''
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_rest_info', 9, 6, 0)
 
     def get_subset_info(self, gather_subset_info, default_fields=None):

@@ -24,6 +24,13 @@ description:
 - If disk_count is not specified all unassigned disks will be assigned to the node specified.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   node:
     required: true
     type: str
@@ -89,6 +96,7 @@ class NetAppOntapDisks():
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             node=dict(required=True, type='str'),
             disk_count=dict(required=False, type='int'),
             disk_type=dict(required=False, type='str', choices=['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'SSD_NVM', 'VMDISK', 'unknown']),
@@ -106,7 +114,8 @@ class NetAppOntapDisks():
         # If min_spares is not specified min_spares is 1 if SSD, min_spares is 2 for any other disk type.
         self.parameters['min_spares'] = 1 if self.parameters.get('disk_type') in ('SSD', 'SSD_NVM') else 2
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:

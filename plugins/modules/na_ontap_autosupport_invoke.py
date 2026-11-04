@@ -29,6 +29,13 @@ description:
     - Send an AutoSupport message from a node
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
 
   name:
     description:
@@ -91,6 +98,7 @@ class NetAppONTAPasupInvoke(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             name=dict(required=False, type='str'),
             autosupport_message=dict(required=False, type='str', aliases=["message"]),
             type=dict(required=False, choices=[
@@ -108,7 +116,8 @@ class NetAppONTAPasupInvoke(object):
             self.module.warn('Error: "message" option conflicts with Ansible internal variable - please use "autosupport_message".')
 
         # REST API should be used for ONTAP 9.6 or higher.
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         if self.rest_api.is_rest():
             self.use_rest = True
         else:

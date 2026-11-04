@@ -20,6 +20,13 @@ extends_documentation_fragment:
 module: na_ontap_cifs
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
 
   comment:
     description:
@@ -300,6 +307,7 @@ class NetAppONTAPCifsShare:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str', aliases=['share_name']),
             path=dict(required=False, type='str'),
@@ -336,7 +344,8 @@ class NetAppONTAPCifsShare:
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # Set up Rest API
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         partially_supported_rest_properties = [['continuously_available', (9, 10, 1)], ['namespace_caching', (9, 10, 1)],
                                                ['show_snapshot', (9, 10, 1)], ['offline_files', (9, 10, 1)], ['allow_unencrypted_access', (9, 11)],
                                                ['browsable', (9, 13, 1)], ['show_previous_versions', (9, 13, 1)],
