@@ -5,6 +5,33 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v24.1.0
+=======
+
+Major Changes
+-------------
+
+- na_ontap_ems_destination - GCNV support added to the module.
+- na_ontap_job_schedule - GCNV support added to the module.
+- na_ontap_name_service_switch - GCNV support added to the module.
+- na_ontap_nfs - GCNV support added to the module.
+- na_ontap_qos_policy_group - GCNV support added to the module.
+- na_ontap_security_ipsec_ca_certificate - AWS Lambda support added to the module.
+- na_ontap_snapmirror_policy - GCNV support added to the module.
+
+Minor Changes
+-------------
+
+- na_ontap_qtree - Added REST only option `qos_policy` and requires ONTAP 9.8 or later.
+- na_ontap_user - New REST only option 'comment' added to the module.
+
+Bugfixes
+--------
+
+- na_ontap_broadcast_domain - fixed error for missing mtu for create operation.
+- na_ontap_service_processor_network - Fixed issue with changing Service Processor IPv4 address when IPv6 is disabled.
+- na_ontap_service_processor_network - Fixed issue with modify when `is_enabled` is not set.
+
 v24.0.0
 =======
 
