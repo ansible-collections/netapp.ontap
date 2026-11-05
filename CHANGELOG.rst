@@ -23,6 +23,7 @@ Minor Changes
 -------------
 
 - na_ontap_qtree - Added REST only option `qos_policy` and requires ONTAP 9.8 or later.
+- na_ontap_software_update - Updated examples.
 - na_ontap_user - New REST only option 'comment' added to the module.
 
 Bugfixes

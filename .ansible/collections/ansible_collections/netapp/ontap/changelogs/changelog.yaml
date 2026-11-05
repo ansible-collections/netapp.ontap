@@ -3922,6 +3922,7 @@ releases:
       minor_changes:
       - na_ontap_qtree - Added REST only option `qos_policy` and requires ONTAP 9.8
         or later.
+      - na_ontap_software_update - Updated examples.
       - na_ontap_user - New REST only option 'comment' added to the module.
     fragments:
     - DEVOPS-8563.yaml
@@ -3930,6 +3931,7 @@ releases:
     - DEVOPS-8653.yaml
     - DEVOPS-8660.yaml
     - DEVOPS-8661.yaml
+    - DEVOPS-8665.yaml
     - github-356.yaml
     - github-357.yaml
-    release_date: '2026-11-04'
+    release_date: '2026-11-05'

@@ -81,7 +81,7 @@
    "name": "CHANGELOG.rst",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "041563386aefac9a946e35f0b6ae38e55c89698571c1c6873fb20f5350a314d5",
+   "chksum_sha256": "7767f237632c3f1b19c50d249e4b480c3e552162af3ea3fdb5f7f65e17a4f82c",
    "format": 1
   },
   {
@@ -109,7 +109,7 @@
    "name": "changelogs/changelog.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "fcf112f0136a73562ce9ccd2803e2f97343352341d8a68bc382dda80afa6cf29",
+   "chksum_sha256": "af959b8939467c03e336a71219094e19a015c9c542df8f2691af55893637e163",
    "format": 1
   },
   {
@@ -7485,6 +7485,13 @@
   },
   {
    "name": "tests/sanity/ignore-2.19.txt",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "7c5f384c71ac45a150f336bd027668c784f522541d6365b186bed8e896d83750",
+   "format": 1
+  },
+  {
+   "name": "tests/sanity/ignore-2.23.txt",
    "ftype": "file",
    "chksum_type": "sha256",
    "chksum_sha256": "7c5f384c71ac45a150f336bd027668c784f522541d6365b186bed8e896d83750",
