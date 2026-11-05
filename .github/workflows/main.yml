@@ -8,25 +8,29 @@ on:
 
 jobs:
   sanity:
-    name: Sanity (${{ matrix.ansible }} on ONTAP
+    name: Sanity (${{ matrix.ansible }}) on ONTAP
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        ansible:
-          - stable-2.16
-          - stable-2.17
-          - devel
+        include:
+          - ansible: stable-2.16
+            python-version: '3.11'
+          - ansible: stable-2.17
+            python-version: '3.11'
+          - ansible: devel
+            # ansible-core devel currently requires Python >= 3.13
+            python-version: '3.13'
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           # Ansible 2.16 requires 3.9 as a minimum
-          python-version: 3.11
+          python-version: ${{ matrix.python-version }}
 
       - name: Install ansible (${{ matrix.ansible }})
         run: pip install https://github.com/ansible/ansible/archive/${{ matrix.ansible }}.tar.gz --disable-pip-version-check
@@ -43,5 +47,5 @@ jobs:
         working-directory: ansible_collections/netapp/ontap/
 
       - name: Run Unit Tests
-        run: ansible-test units --docker -v --color --python 3.11
+        run: ansible-test units --docker -v --color --python ${{ matrix.python-version }}
         working-directory: ansible_collections/netapp/ontap/

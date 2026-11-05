@@ -67,14 +67,14 @@
    "name": ".github/workflows/main.yml",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "261cde81485348323c20acd6383228f4eb6ca8e41fe77f3c25a8395da7ef0874",
+   "chksum_sha256": "0566c7c63a6f9d4e3af962c757db10ee44a7325555dcde7a8930a281995e7aa7",
    "format": 1
   },
   {
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "faa1980b23dfaeff18518cea3dc964b3726ddb91d848e64cfb5ca8e2c9f3ba46",
+   "chksum_sha256": "62e63cbc6373afa20110ad734d43596c50e4714f5936c4375bb2e62f0f3bd6a4",
    "format": 1
   },
   {
@@ -5013,6 +5013,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8665.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "c9ec4611fa1641b5e0167903d9453e6b1e71f8f7d3aff08a2b5dbc12253d3f57",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -6437,7 +6444,7 @@
    "name": "plugins/modules/na_ontap_software_update.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4bf3bcd62daafad6c4e43237a8d0d90ccf0e0406d8c124af9d936f4f91603a42",
+   "chksum_sha256": "5806cd6accf9ebf12542e1db67dee78c78202c2557ea49702e01535385acec9e",
    "format": 1
   },
   {

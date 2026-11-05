@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -101,10 +101,9 @@ notes:
 '''
 
 EXAMPLES = """
-- name: start ONTAP software update Precheck on Metrocluster DR Site B
+- name: Start ONTAP software update Precheck on Metrocluster DR Site B
   netapp.ontap.na_ontap_software_update:
     state: present
-    nodes: "{{ nodes }}"
     package_url: "{{ url }}"
     download_only: true
     validate_after_download: true
@@ -115,10 +114,9 @@ EXAMPLES = """
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
 
-- name: start ONTAP software update on DR Site A
+- name: Start ONTAP software update on DR Site A after successful Precheck
   netapp.ontap.na_ontap_software_update:
     state: present
-    nodes: "{{ nodes }}"
     package_url: "{{ url }}"
     package_version: "9.16.1P4"
     ignore_validation_warning: true
