@@ -24,6 +24,13 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
 - Display issues related to importing netapp-lib and connection with diagnose
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   vserver:
     description:
     - The vserver name to test for ZAPI tunneling.
@@ -87,6 +94,7 @@ class NetAppONTAPDebug(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             vserver=dict(required=False, type="str"),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
@@ -99,7 +107,8 @@ class NetAppONTAPDebug(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
         if not self.use_rest:
             if self.parameters.get('use_lambda'):

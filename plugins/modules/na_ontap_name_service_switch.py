@@ -17,6 +17,13 @@ extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_name_service_switch
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     choices: ['present', 'absent']
     description:
@@ -152,6 +159,7 @@ class NetAppONTAPNsswitch:
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             database_type=dict(required=True, type='str', choices=['hosts', 'group', 'passwd', 'netgroup', 'namemap']),
@@ -178,7 +186,8 @@ class NetAppONTAPNsswitch:
             self.parameters['sources'] = [source.strip() for source in self.parameters['sources']]
             if '' in self.parameters['sources']:
                 self.module.fail_json(msg="Error: Invalid value '' specified for sources")
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
         self.svm_uuid = None
         if not self.use_rest:

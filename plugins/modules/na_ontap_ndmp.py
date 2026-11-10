@@ -28,6 +28,13 @@ description:
     - Modify NDMP Services.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
 
   vserver:
     description:
@@ -228,6 +235,7 @@ class NetAppONTAPNdmp(object):
             tcpwinsize=dict(required=False, type='int')
         )
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             vserver=dict(required=True, type='str'),
             ndmp_user=dict(required=False, type='str'),
         ))
@@ -242,7 +250,8 @@ class NetAppONTAPNdmp(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         # API should be used for ONTAP 9.6 or higher, ZAPI for lower version
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['abort_on_disk_error', 'backup_log_enable', 'data_port_range',
                                        'debug_enable', 'debug_filter', 'dump_detailed_stats',
                                        'dump_logical_find', 'fh_dir_retry_interval', 'fh_node_retry_interval',

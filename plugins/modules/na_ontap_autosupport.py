@@ -18,6 +18,13 @@ description:
   - Enable/Disable Autosupport
 author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Specifies whether the AutoSupport daemon is to be enabled or disabled.
@@ -272,6 +279,7 @@ class NetAppONTAPasup:
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             node_name=dict(required=False, type='str'),
             transport=dict(required=False, type='str', choices=['smtp', 'http', 'https']),
@@ -317,7 +325,8 @@ class NetAppONTAPasup:
                 self.parameters['service_state'] = 'started' if self.parameters.get('enabled') is True else 'stopped'
         self.set_playbook_zapi_key_map()
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['node_name', 'retry_count', 'max_http_size', 'max_smtp_size',
                                        'noteto', 'hostname_in_subject', 'nht_data_enabled',
                                        'perf_data_enabled', 'reminder_enabled', 'private_data_removed',

@@ -21,6 +21,13 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create or destroy or rename export-policies on ONTAP
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Whether the specified export policy should exist or not.
@@ -165,6 +172,7 @@ class NetAppONTAPExportPolicy():
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str', default=None),
@@ -183,7 +191,8 @@ class NetAppONTAPExportPolicy():
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         if self.parameters.get('use_lambda') and not self.rest_api.is_rest():
             self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
         if self.rest_api.is_rest():

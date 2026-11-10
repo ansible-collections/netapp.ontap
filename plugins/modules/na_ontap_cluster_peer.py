@@ -98,6 +98,12 @@ options:
       - By default the system will generate the same name as cluster name.
     type: str
     version_added: '23.1.0'
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -143,6 +149,7 @@ EXAMPLES = """
     peer_options:
       hostname: "{{ dest_netapp_hostname }}"
     encryption_protocol_proposed: tls_psk
+    rest_timeout: 120
 
 - name: Delete cluster peer
   netapp.ontap.na_ontap_cluster_peer:
@@ -220,6 +227,7 @@ class NetAppONTAPClusterPeer:
             encryption_protocol_proposed=dict(required=False, type='str', choices=['tls_psk', 'none']),
             local_name_for_peer=dict(required=False, type='str'),
             local_name_for_source=dict(required=False, type='str'),
+            rest_timeout=dict(required=False, type='int'),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         # Add Lambda support to peer_options
@@ -254,9 +262,10 @@ class NetAppONTAPClusterPeer:
             self.parameters['peer_options'], self.module,
             netapp_utils.na_ontap_host_argument_spec_peer().keys())
         self.use_rest = False
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         self.src_use_rest = self.rest_api.is_rest()
-        self.dst_rest_api = OntapRestAPI(self.module, host_options=self.parameters['peer_options'])
+        self.dst_rest_api = OntapRestAPI(self.module, timeout=timeout_rest, host_options=self.parameters['peer_options'])
         self.dst_use_rest = self.dst_rest_api.is_rest()
         self.use_rest = bool(self.src_use_rest and self.dst_use_rest)
         if not self.use_rest:

@@ -18,6 +18,13 @@ description:
   - Create, delete, or modify EMS filters on NetApp ONTAP. This module only supports REST.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Whether the specified user should exist or not.
@@ -210,6 +217,7 @@ class NetAppOntapEMSFilters:
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec['hostname']['required'] = False
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             rules=dict(type='list', elements='dict', options=dict(
@@ -239,7 +247,8 @@ class NetAppOntapEMSFilters:
         )
         self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         self.use_rest = self.rest_api.is_rest()
         if not self.use_rest:
             self.module.fail_json(msg="This module requires REST with ONTAP 9.6 or higher")

@@ -25,6 +25,13 @@ description:
   - Requires ONTAP 9.7 or later, and only supports REST.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   state:
     description:
       - Whether the specified publickey should exist or not.
@@ -153,6 +160,7 @@ class NetAppOntapPublicKey:
         self.use_rest = False
         argument_spec = netapp_utils.na_ontap_rest_only_spec()
         argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(type='str', choices=['present', 'absent'], default='present'),
             account=dict(required=True, type='str'),
             comment=dict(type='str'),
@@ -178,7 +186,8 @@ class NetAppOntapPublicKey:
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # REST API is required
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         # check version
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_publickey', 9, 7)
 

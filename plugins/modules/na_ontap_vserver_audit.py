@@ -16,6 +16,12 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create, delete or modify vserver audit configuration.
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
   state:
     description:
       - Whether the specified vserver audit configuration should exist or not.
@@ -314,6 +320,7 @@ class NetAppONTAPVserverAudit:
 
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             enabled=dict(required=False, type='bool'),
@@ -360,7 +367,8 @@ class NetAppONTAPVserverAudit:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.filter_out_none_entries(self.na_helper.set_parameters(self.module.params))
 
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_vserver_audit', 9, 6)
         partially_supported_rest_properties = [['guarantee', (9, 10, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)

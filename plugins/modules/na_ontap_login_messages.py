@@ -22,6 +22,13 @@ short_description: Setup login banner and message of the day
 description:
     - This module allows you to manipulate login banner and motd for a vserver
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
   banner:
     description:
       - Login banner Text message.
@@ -119,6 +126,7 @@ class NetAppOntapLoginMessages:
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             vserver=dict(type='str'),
             banner=dict(type='str'),
             motd_message=dict(type='str', aliases=['message']),
@@ -137,7 +145,8 @@ class NetAppOntapLoginMessages:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         if self.rest_api.is_rest():
             self.use_rest = True
         else:

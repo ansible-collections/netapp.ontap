@@ -21,6 +21,12 @@ description:
   - Create, modify, or destroy user roles.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
 
   state:
     description:
@@ -220,6 +226,7 @@ class NetAppOntapUserRole:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             command_directory_name=dict(required=False, type='str'),
@@ -267,7 +274,8 @@ class NetAppOntapUserRole:
                             privilege.pop('query', None)
                         elif privilege.get('query') in ['', '-']:
                             privilege['query'] = None
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=timeout_rest)
         unsupported_rest_properties = ['command_directory_name', 'access_level']
         # Check if any privilege uses query feature that requires 9.11.1+
         has_query = any(priv.get('query') and priv['query'] != '' for priv in self.parameters.get('privileges', []))

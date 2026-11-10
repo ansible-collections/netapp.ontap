@@ -20,6 +20,13 @@ description:
   - Create, destroy, resize LUNs on NetApp ONTAP.
 
 options:
+  rest_timeout:
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+      - Default is set to 60 seconds.
+    type: int
+
 
   state:
     description:
@@ -400,6 +407,7 @@ class NetAppOntapLUN:
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            rest_timeout=dict(required=False, type='int'),
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
@@ -474,7 +482,8 @@ class NetAppOntapLUN:
         # self.debug['got'] = 'empty'     # uncomment to enable collecting data
         self.asa_r2_system = False
 
-        self.rest_api = OntapRestAPI(self.module)
+        timeout_rest = 60 if self.parameters.get('rest_timeout') is None else self.parameters.get('rest_timeout')
+        self.rest_api = OntapRestAPI(self.module, timeout=timeout_rest)
         # use_exact_size is defaulted to true, but not supported with REST. To get around this we will ignore the variable in rest.
         unsupported_rest_properties = ['force_resize', 'force_remove_fenced']
         partially_supported_rest_properties = [['san_application_template', (9, 7)],
