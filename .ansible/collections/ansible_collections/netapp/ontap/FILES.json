@@ -7641,7 +7641,7 @@
    "name": "tests/unit/plugins/module_utils/ansible_mocks.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "ec3a3530093f800c6369d571a999876e6b9df8523fbef35c8be1ed3c3f8a473d",
+   "chksum_sha256": "a5055f8d65a31ac06747e51be1ad8852a714c79f9524b65b3ba8f434cb039626",
    "format": 1
   },
   {

@@ -23,6 +23,9 @@ def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
     args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
     basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
+    if hasattr(basic, '_ANSIBLE_PROFILE'):
+        # ansible-core 2.19+ also requires a serialization profile, 'legacy' is what ansible.module_utils.testing.patch_module_args uses.
+        basic._ANSIBLE_PROFILE = 'legacy'  # pylint: disable=protected-access
 
 
 class AnsibleExitJson(Exception):
@@ -140,6 +143,8 @@ def patch_ansible():
         # so that we get a SystemExit: 1 error (no able to read from stdin in ansible-test !)
         # if set_module_args() was not called
         basic._ANSIBLE_ARGS = None
+        if hasattr(basic, '_ANSIBLE_PROFILE'):
+            basic._ANSIBLE_PROFILE = None  # pylint: disable=protected-access
         yield mocks
 
 
