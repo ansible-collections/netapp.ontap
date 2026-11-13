@@ -13,15 +13,17 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          # Python 3.9 is end of life (setup-python could not find it on the runner).
+          # Keep in sync with the Python version used by the unit tests in main.yml.
+          python-version: '3.11'
 
-      - name: Install ansible stable-2.11
-        run: pip install https://github.com/ansible/ansible/archive/stable-2.11.tar.gz --disable-pip-version-check
+      - name: Install ansible stable-2.17
+        run: pip install https://github.com/ansible/ansible/archive/stable-2.17.tar.gz --disable-pip-version-check
 
       - name: Make directory to make ansible-test happy
         run: |
@@ -30,7 +32,7 @@ jobs:
           rsync -av . ansible_collections/netapp/ontap/ --exclude ansible_collections/netapp/ontap/
 
       - name: Run Unit Tests
-        run: ansible-test units --coverage --color --docker --python 3.9
+        run: ansible-test units --coverage --color --docker --python 3.11
         working-directory: ansible_collections/netapp/ontap/
 
         # ansible-test support producing code coverage date
